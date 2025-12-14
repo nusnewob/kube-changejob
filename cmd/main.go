@@ -37,6 +37,7 @@ import (
 
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
 	"github.com/nusnewob/kube-changejob/internal/controller"
+	webhookv1alpha "github.com/nusnewob/kube-changejob/internal/webhook/v1alpha"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -184,6 +185,13 @@ func main() {
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ChangeTriggeredJob")
 		os.Exit(1)
+	}
+	// nolint:goconst
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err := webhookv1alpha.SetupChangeTriggeredJobWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ChangeTriggeredJob")
+			os.Exit(1)
+		}
 	}
 	// +kubebuilder:scaffold:builder
 

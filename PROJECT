@@ -23,4 +23,8 @@ resources:
   kind: ChangeTriggeredJob
   path: github.com/nusnewob/kube-changejob/api/v1alpha
   version: v1alpha
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
 version: "3"
