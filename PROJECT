@@ -13,4 +13,14 @@ plugins:
     output: dist
 projectName: kube-changejob
 repo: github.com/nusnewob/kube-changejob
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: changejob.io
+  group: triggers
+  kind: ChangeTriggeredJob
+  path: github.com/nusnewob/kube-changejob/api/v1alpha
+  version: v1alpha
 version: "3"
