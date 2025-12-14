@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha
 
 import (
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,9 +32,35 @@ type ChangeTriggeredJobSpec struct {
 	// The following markers will use OpenAPI v3 schema to validate the value
 	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
 
-	// foo is an example field of ChangeTriggeredJob. Edit changetriggeredjob_types.go to remove/update
+	// jobTemplate defines the job that will be created when executing a Job.
+	// +required
+	JobTemplate batchv1.JobTemplateSpec `json:"jobTemplate"`
+
+	// list of resources to watch
+	// +required
+	Resources []ResourceReference `json:"resources"`
+
+	// Optional: cooldown period between triggers
+	Cooldown metav1.Duration `json:"cooldown,omitempty"`
+}
+
+// Watched Resouce object
+type ResourceReference struct {
+	// Kind of the Kubernetes resource, e.g., ConfigMap, Secret
+	// +required
+	Kind string `json:"kind"`
+
+	// Name of the resource
+	// +required
+	Name string `json:"name"`
+
+	// Namespace of the resource (optional for cluster-scoped resources)
 	// +optional
-	Foo *string `json:"foo,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+
+	// Optional: fields to watch within the resource
+	// +optional
+	Fields []string `json:"fields,omitempty"`
 }
 
 // ChangeTriggeredJobStatus defines the observed state of ChangeTriggeredJob.
@@ -56,7 +84,55 @@ type ChangeTriggeredJobStatus struct {
 	// +listMapKey=type
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Last change hash
+	// +optional
+	ResourceHashes []ResourceHash `json:"resourceHashes,omitempty"`
+
+	// Last Job triggered time
+	// +optional
+	LastTriggeredTime *metav1.Time `json:"lastTriggeredTime,omitempty"`
+
+	// Last Job name
+	// +optional
+	LastJobName string `json:"lastJobName,omitempty"`
+
+	// Last Job status
+	// +optional
+	LastJobStatus JobState `json:"lastJobStatus,omitempty"`
 }
+
+// Watched ResouceHash object
+type ResourceHash struct {
+	// Kind of the Kubernetes resource, e.g., ConfigMap, Secret
+	// +required
+	Kind string `json:"kind"`
+
+	// Name of the resource
+	// +required
+	Name string `json:"name"`
+
+	// Namespace of the resource (optional for cluster-scoped resources)
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Optional: fields to watch within the resource
+	// +optional
+	Fields []string `json:"fields,omitempty"`
+
+	// Last hash of the resource
+	// +optional
+	LastHash string `json:"lastHash,omitempty"`
+}
+
+// Define last job state
+type JobState string
+
+const (
+	JobStateActive    JobState = "Active"
+	JobStateSucceeded JobState = "Succeeded"
+	JobStateFailed    JobState = "Failed"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
