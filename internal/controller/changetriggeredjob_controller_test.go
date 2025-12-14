@@ -25,6 +25,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
@@ -51,7 +53,34 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: triggersv1alpha.ChangeTriggeredJobSpec{
+						JobTemplate: batchv1.JobTemplateSpec{
+							Spec: batchv1.JobSpec{
+								Template: corev1.PodTemplateSpec{
+									Spec: corev1.PodSpec{
+										RestartPolicy: corev1.RestartPolicyNever,
+										Containers: []corev1.Container{
+											{
+												Name:  "test-container",
+												Image: "busybox",
+												Command: []string{
+													"echo",
+													"hello world",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						Resources: []triggersv1alpha.ResourceReference{
+							{
+								Kind:      "ConfigMap",
+								Name:      "test-configmap",
+								Namespace: "default",
+							},
+						},
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}

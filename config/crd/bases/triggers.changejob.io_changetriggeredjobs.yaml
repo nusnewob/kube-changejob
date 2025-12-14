@@ -8998,7 +8998,7 @@ spec:
               resources:
                 description: list of resources to watch
                 items:
-                  description: Watched Resouce object
+                  description: Watched Resource object
                   properties:
                     fields:
                       description: 'Optional: fields to watch within the resource'

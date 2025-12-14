@@ -43,7 +43,7 @@ type ChangeTriggeredJobSpec struct {
 	Cooldown metav1.Duration `json:"cooldown,omitempty"`
 }
 
-// Watched Resouce object
+// Watched Resource object
 type ResourceReference struct {
 	// Kind of the Kubernetes resource, e.g., ConfigMap, Secret
 	// +required
