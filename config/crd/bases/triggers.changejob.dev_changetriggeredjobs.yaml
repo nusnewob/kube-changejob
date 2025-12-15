@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
-  name: changetriggeredjobs.triggers.changejob.io
+  name: changetriggeredjobs.triggers.changejob.dev
 spec:
-  group: triggers.changejob.io
+  group: triggers.changejob.dev
   names:
     kind: ChangeTriggeredJob
     listKind: ChangeTriggeredJobList

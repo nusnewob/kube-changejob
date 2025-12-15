@@ -46,9 +46,9 @@ type ChangeTriggeredJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=triggers.changejob.io,resources=changetriggeredjobs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=triggers.changejob.io,resources=changetriggeredjobs/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=triggers.changejob.io,resources=changetriggeredjobs/finalizers,verbs=update
+// +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs/finalizers,verbs=update
 
 // Manage triggered jobs
 // +kubebuilder:rbac:groups=batch,resources=job,verbs=get;list;watch;create;update;patch;delete

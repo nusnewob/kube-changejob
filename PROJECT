@@ -3,7 +3,7 @@
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
 cliVersion: 4.10.1
-domain: changejob.io
+domain: changejob.dev
 layout:
 - go.kubebuilder.io/v4
 plugins:
@@ -18,7 +18,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: changejob.io
+  domain: changejob.dev
   group: triggers
   kind: ChangeTriggeredJob
   path: github.com/nusnewob/kube-changejob/api/v1alpha

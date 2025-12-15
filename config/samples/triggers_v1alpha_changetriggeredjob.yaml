@@ -1,4 +1,4 @@
-apiVersion: triggers.changejob.io/v1alpha
+apiVersion: triggers.changejob.dev/v1alpha
 kind: ChangeTriggeredJob
 metadata:
   labels:

@@ -46,7 +46,7 @@ func SetupChangeTriggeredJobWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/mutate-triggers-changejob-io-v1alpha-changetriggeredjob,mutating=true,failurePolicy=fail,sideEffects=None,groups=triggers.changejob.io,resources=changetriggeredjobs,verbs=create;update,versions=v1alpha,name=mchangetriggeredjob-v1alpha.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/mutate-triggers-changejob-dev-v1alpha-changetriggeredjob,mutating=true,failurePolicy=fail,sideEffects=None,groups=triggers.changejob.dev,resources=changetriggeredjobs,verbs=create;update,versions=v1alpha,name=mchangetriggeredjob-v1alpha.kb.io,admissionReviewVersions=v1
 
 // ChangeTriggeredJobCustomDefaulter struct is responsible for setting default values on the custom resource of the
 // Kind ChangeTriggeredJob when those are created or updated.
@@ -64,7 +64,7 @@ var DefaultValues = ChangeTriggeredJobCustomDefaulter{
 	DefaultCooldown:        30 * time.Second,
 	DefaultDelay:           30 * time.Second,
 	DefaultCondition:       triggersv1alpha.TriggerConditionAny,
-	ChangedAtAnnotationKey: "changetriggeredjobs.triggers.changejob.io/changed-at",
+	ChangedAtAnnotationKey: "changetriggeredjobs.triggers.changejob.dev/changed-at",
 }
 
 var _ webhook.CustomDefaulter = &ChangeTriggeredJobCustomDefaulter{}
@@ -102,7 +102,7 @@ func (d *ChangeTriggeredJobCustomDefaulter) Default(_ context.Context, obj runti
 }
 
 // NOTE: If you want to customise the 'path', use the flags '--defaulting-path' or '--validation-path'.
-// +kubebuilder:webhook:path=/validate-triggers-changejob-io-v1alpha-changetriggeredjob,mutating=false,failurePolicy=fail,sideEffects=None,groups=triggers.changejob.io,resources=changetriggeredjobs,verbs=create;update,versions=v1alpha,name=vchangetriggeredjob-v1alpha.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-triggers-changejob-dev-v1alpha-changetriggeredjob,mutating=false,failurePolicy=fail,sideEffects=None,groups=triggers.changejob.dev,resources=changetriggeredjobs,verbs=create;update,versions=v1alpha,name=vchangetriggeredjob-v1alpha.kb.io,admissionReviewVersions=v1
 
 // ChangeTriggeredJobCustomValidator struct is responsible for validating the ChangeTriggeredJob resource
 // when it is created, updated, or deleted.

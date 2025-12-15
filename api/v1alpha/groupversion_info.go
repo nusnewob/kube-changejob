@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package v1alpha contains API Schema definitions for the triggers v1alpha API group.
 // +kubebuilder:object:generate=true
-// +groupName=triggers.changejob.io
+// +groupName=triggers.changejob.dev
 package v1alpha
 
 import (
@@ -26,7 +26,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects.
-	GroupVersion = schema.GroupVersion{Group: "triggers.changejob.io", Version: "v1alpha"}
+	GroupVersion = schema.GroupVersion{Group: "triggers.changejob.dev", Version: "v1alpha"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}

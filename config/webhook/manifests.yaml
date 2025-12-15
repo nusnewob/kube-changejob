@@ -10,12 +10,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-triggers-changejob-io-v1alpha-changetriggeredjob
+      path: /mutate-triggers-changejob-dev-v1alpha-changetriggeredjob
   failurePolicy: Fail
   name: mchangetriggeredjob-v1alpha.kb.io
   rules:
   - apiGroups:
-    - triggers.changejob.io
+    - triggers.changejob.dev
     apiVersions:
     - v1alpha
     operations:
@@ -36,12 +36,12 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-triggers-changejob-io-v1alpha-changetriggeredjob
+      path: /validate-triggers-changejob-dev-v1alpha-changetriggeredjob
   failurePolicy: Fail
   name: vchangetriggeredjob-v1alpha.kb.io
   rules:
   - apiGroups:
-    - triggers.changejob.io
+    - triggers.changejob.dev
     apiVersions:
     - v1alpha
     operations:
