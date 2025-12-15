@@ -54,6 +54,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 						Namespace: "default",
 					},
 					Spec: triggersv1alpha.ChangeTriggeredJobSpec{
+						Condition: triggersv1alpha.TriggerConditionAny,
 						JobTemplate: batchv1.JobTemplateSpec{
 							Spec: batchv1.JobSpec{
 								Template: corev1.PodTemplateSpec{

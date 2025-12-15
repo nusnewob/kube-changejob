@@ -40,8 +40,21 @@ spec:
           spec:
             description: spec defines the desired state of ChangeTriggeredJob
             properties:
+              condition:
+                default: Any
+                description: Trigger condition, job triggers when All or Any watched
+                  resource changes
+                enum:
+                - All
+                - Any
+                type: string
               cooldown:
+                default: 30s
                 description: 'Optional: cooldown period between triggers'
+                type: string
+              delay:
+                default: 30s
+                description: 'Optional: time delay to start the job'
                 type: string
               jobTemplate:
                 description: jobTemplate defines the job that will be created when
@@ -9000,8 +9013,12 @@ spec:
                 items:
                   description: Watched Resource object
                   properties:
+                    apiVersion:
+                      description: API group of the resource, e.g., apps/v1, example.io/v1beta
+                      type: string
                     fields:
-                      description: 'Optional: fields to watch within the resource'
+                      description: 'Optional: JSON Path of fields to watch within
+                        the resource'
                       items:
                         type: string
                       type: array
@@ -9017,6 +9034,7 @@ spec:
                         resources)
                       type: string
                   required:
+                  - apiVersion
                   - kind
                   - name
                   type: object
@@ -9102,6 +9120,10 @@ spec:
                 type: string
               lastJobStatus:
                 description: Last Job status
+                enum:
+                - Active
+                - Succeeded
+                - Failed
                 type: string
               lastTriggeredTime:
                 description: Last Job triggered time

@@ -39,12 +39,28 @@ type ChangeTriggeredJobSpec struct {
 	// +required
 	Resources []ResourceReference `json:"resources"`
 
+	// Trigger condition, job triggers when All or Any watched resource changes
+	// +optional
+	// +default:value="Any"
+	Condition TriggerCondition `json:"condition"`
+
 	// Optional: cooldown period between triggers
+	// +optional
+	// +default:value="30s"
 	Cooldown metav1.Duration `json:"cooldown,omitempty"`
+
+	// Optional: time delay to start the job
+	// +optional
+	// +default:value="30s"
+	Delay metav1.Duration `json:"delay,omitempty"`
 }
 
 // Watched Resource object
 type ResourceReference struct {
+	// API group of the resource, e.g., apps/v1, example.io/v1beta
+	// + required
+	APIVersion string `json:"apiVersion"`
+
 	// Kind of the Kubernetes resource, e.g., ConfigMap, Secret
 	// +required
 	Kind string `json:"kind"`
@@ -57,10 +73,19 @@ type ResourceReference struct {
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 
-	// Optional: fields to watch within the resource
+	// Optional: JSON Path of fields to watch within the resource
 	// +optional
 	Fields []string `json:"fields,omitempty"`
 }
+
+// Define trigger conditions
+// +kubebuilder:validation:Enum:=All;Any
+type TriggerCondition string
+
+const (
+	TriggerConditionAll TriggerCondition = "All"
+	TriggerConditionAny TriggerCondition = "Any"
+)
 
 // ChangeTriggeredJobStatus defines the observed state of ChangeTriggeredJob.
 type ChangeTriggeredJobStatus struct {
@@ -125,6 +150,7 @@ type ResourceHash struct {
 }
 
 // Define last job state
+// +kubebuilder:validation:Enum:=Active;Succeeded;Failed
 type JobState string
 
 const (
