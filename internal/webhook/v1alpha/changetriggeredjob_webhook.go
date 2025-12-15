@@ -19,6 +19,9 @@ package v1alpha
 import (
 	"context"
 	"fmt"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,8 +44,6 @@ func SetupChangeTriggeredJobWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 // +kubebuilder:webhook:path=/mutate-triggers-changejob-io-v1alpha-changetriggeredjob,mutating=true,failurePolicy=fail,sideEffects=None,groups=triggers.changejob.io,resources=changetriggeredjobs,verbs=create;update,versions=v1alpha,name=mchangetriggeredjob-v1alpha.kb.io,admissionReviewVersions=v1
 
 // ChangeTriggeredJobCustomDefaulter struct is responsible for setting default values on the custom resource of the
@@ -51,7 +52,17 @@ func SetupChangeTriggeredJobWebhookWithManager(mgr ctrl.Manager) error {
 // NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
 // as it is used only for temporary operations and does not need to be deeply copied.
 type ChangeTriggeredJobCustomDefaulter struct {
-	// TODO(user): Add more fields as needed for defaulting
+	DefaultCooldown        time.Duration
+	DefaultDelay           time.Duration
+	DefaultCondition       triggersv1alpha.TriggerCondition
+	ChangedAtAnnotationKey string
+}
+
+var DefaultValues = ChangeTriggeredJobCustomDefaulter{
+	DefaultCooldown:        30 * time.Second,
+	DefaultDelay:           30 * time.Second,
+	DefaultCondition:       triggersv1alpha.TriggerConditionAny,
+	ChangedAtAnnotationKey: "changetriggeredjobs.triggers.changejob.io/changed-at",
 }
 
 var _ webhook.CustomDefaulter = &ChangeTriggeredJobCustomDefaulter{}
@@ -65,12 +76,29 @@ func (d *ChangeTriggeredJobCustomDefaulter) Default(_ context.Context, obj runti
 	}
 	changetriggeredjoblog.Info("Defaulting for ChangeTriggeredJob", "name", changetriggeredjob.GetName())
 
-	// TODO(user): fill in your defaulting logic.
+	// Optional: default cooldown if unset
+	if changetriggeredjob.Spec.Cooldown.Duration == 0 {
+		changetriggeredjob.Spec.Cooldown = metav1.Duration{Duration: DefaultValues.DefaultCooldown}
+	}
+
+	// Optional: default delay if unset
+	if changetriggeredjob.Spec.Delay.Duration == 0 {
+		changetriggeredjob.Spec.Delay = metav1.Duration{Duration: DefaultValues.DefaultDelay}
+	}
+
+	// Optional: default trigger condition if unset
+	if changetriggeredjob.Spec.Condition == "" {
+		changetriggeredjob.Spec.Condition = DefaultValues.DefaultCondition
+	}
+
+	if changetriggeredjob.Annotations == nil {
+		changetriggeredjob.Annotations = make(map[string]string)
+	}
+	changetriggeredjob.Annotations[DefaultValues.ChangedAtAnnotationKey] = time.Now().UTC().Format(time.RFC3339)
 
 	return nil
 }
 
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 // NOTE: If you want to customise the 'path', use the flags '--defaulting-path' or '--validation-path'.
 // +kubebuilder:webhook:path=/validate-triggers-changejob-io-v1alpha-changetriggeredjob,mutating=false,failurePolicy=fail,sideEffects=None,groups=triggers.changejob.io,resources=changetriggeredjobs,verbs=create;update,versions=v1alpha,name=vchangetriggeredjob-v1alpha.kb.io,admissionReviewVersions=v1
 
@@ -80,7 +108,7 @@ func (d *ChangeTriggeredJobCustomDefaulter) Default(_ context.Context, obj runti
 // NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
 // as this struct is used only for temporary operations and does not need to be deeply copied.
 type ChangeTriggeredJobCustomValidator struct {
-	// TODO(user): Add more fields as needed for validation
+	Triggers []triggersv1alpha.ResourceReference
 }
 
 var _ webhook.CustomValidator = &ChangeTriggeredJobCustomValidator{}
@@ -93,7 +121,9 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateCreate(_ context.Context, ob
 	}
 	changetriggeredjoblog.Info("Validation for ChangeTriggeredJob upon creation", "name", changetriggeredjob.GetName())
 
-	// TODO(user): fill in your validation logic upon object creation.
+	if len(changetriggeredjob.Spec.Resources) == 0 {
+		return nil, fmt.Errorf("at least one resource must be specified")
+	}
 
 	return nil, nil
 }
@@ -106,7 +136,9 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateUpdate(_ context.Context, ol
 	}
 	changetriggeredjoblog.Info("Validation for ChangeTriggeredJob upon update", "name", changetriggeredjob.GetName())
 
-	// TODO(user): fill in your validation logic upon object update.
+	if len(changetriggeredjob.Spec.Resources) == 0 {
+		return nil, fmt.Errorf("at least one resource must be specified")
+	}
 
 	return nil, nil
 }
@@ -118,8 +150,6 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateDelete(ctx context.Context, 
 		return nil, fmt.Errorf("expected a ChangeTriggeredJob object but got %T", obj)
 	}
 	changetriggeredjoblog.Info("Validation for ChangeTriggeredJob upon deletion", "name", changetriggeredjob.GetName())
-
-	// TODO(user): fill in your validation logic upon object deletion.
 
 	return nil, nil
 }
