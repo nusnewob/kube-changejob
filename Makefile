@@ -102,6 +102,17 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 lint-config: golangci-lint ## Verify golangci-lint linter configuration
 	"$(GOLANGCI_LINT)" config verify
 
+.PHONY: modernize
+modernize: go-modernize
+	"$(GO_MODERNIZE)" ./...
+
+.PHONY: modernize-fix
+modernize-fix: go-modernize
+	"$(GO_MODERNIZE)" -fix ./...
+
+.PHONY: lint-all
+lint-all: fmt vet lint-config lint-fix modernize-fix
+
 ##@ Build
 
 .PHONY: build
@@ -185,6 +196,7 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+GO_MODERNIZE = $(LOCALBIN)/modernize
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.7.1
@@ -201,6 +213,8 @@ ENVTEST_K8S_VERSION ?= $(shell v='$(call gomodver,k8s.io/api)'; \
   printf '%s\n' "$$v" | sed -E 's/^v?[0-9]+\.([0-9]+).*/1.\1/')
 
 GOLANGCI_LINT_VERSION ?= v2.5.0
+GO_MODERNIZE_VERSION ?= v0.40.0
+
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
@@ -228,6 +242,11 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+
+.PHONY: go-modernize
+go-modernize: $(GO_MODERNIZE) ## Download golangci-modernize locally if necessary.
+$(GO_MODERNIZE): $(LOCALBIN)
+	$(call go-install-tool,$(GO_MODERNIZE),golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize,$(GO_MODERNIZE_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
