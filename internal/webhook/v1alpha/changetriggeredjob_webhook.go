@@ -22,6 +22,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
+	watchregistry "github.com/nusnewob/kube-changejob/internal/watchregistry"
 )
 
 // nolint:unused
@@ -123,6 +125,25 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateCreate(_ context.Context, ob
 
 	if len(changetriggeredjob.Spec.Resources) == 0 {
 		return nil, fmt.Errorf("at least one resource must be specified")
+	}
+
+	for i, ref := range changetriggeredjob.Spec.Resources {
+		gvk, err := watchregistry.CanonicalGVK(ref.APIVersion, ref.Kind)
+		if err != nil {
+			return nil, field.Invalid(
+				field.NewPath("spec", "resources").Index(i).Child("apiVersion"),
+				ref.APIVersion,
+				err.Error(),
+			)
+		}
+
+		if !watchregistry.IsSupportedGVK(gvk) {
+			return nil, field.NotSupported(
+				field.NewPath("spec", "resources").Index(i),
+				fmt.Sprintf("%s/%s", ref.APIVersion, ref.Kind),
+				watchregistry.SupportedGVKStrings(),
+			)
+		}
 	}
 
 	return nil, nil

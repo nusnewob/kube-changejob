@@ -48,6 +48,17 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			By("creating the custom resource for the Kind ChangeTriggeredJob")
 			err := k8sClient.Get(ctx, typeNamespacedName, changetriggeredjob)
 			if err != nil && errors.IsNotFound(err) {
+				cm := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-configmap",
+						Namespace: "default",
+					},
+					Data: map[string]string{
+						"key": "value",
+					},
+				}
+				Expect(k8sClient.Create(ctx, cm)).To(Succeed())
+
 				resource := &triggersv1alpha.ChangeTriggeredJob{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
@@ -76,9 +87,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 						},
 						Resources: []triggersv1alpha.ResourceReference{
 							{
-								Kind:      "ConfigMap",
-								Name:      "test-configmap",
-								Namespace: "default",
+								APIVersion: "v1",
+								Kind:       "ConfigMap",
+								Name:       "test-configmap",
+								Namespace:  "default",
 							},
 						},
 					},

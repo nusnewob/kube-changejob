@@ -111,7 +111,7 @@ type ChangeTriggeredJobStatus struct {
 
 	// Last change hash
 	// +optional
-	ResourceHashes []ResourceHash `json:"resourceHashes,omitempty"`
+	ResourceHashes []ResourceReferenceStatus `json:"resourceHashes,omitempty"`
 
 	// Last Job triggered time
 	// +optional
@@ -127,7 +127,11 @@ type ChangeTriggeredJobStatus struct {
 }
 
 // Watched ResouceHash object
-type ResourceHash struct {
+type ResourceReferenceStatus struct {
+	// API group of the resource, e.g., apps/v1, example.io/v1beta
+	// + required
+	APIVersion string `json:"apiVersion"`
+
 	// Kind of the Kubernetes resource, e.g., ConfigMap, Secret
 	// +required
 	Kind string `json:"kind"`
@@ -141,12 +145,13 @@ type ResourceHash struct {
 	Namespace string `json:"namespace,omitempty"`
 
 	// Optional: fields to watch within the resource
-	// +optional
-	Fields []string `json:"fields,omitempty"`
+	// +required
+	Fields []ResourceFieldHash `json:"fields,omitempty"`
+}
 
-	// Last hash of the resource
-	// +optional
-	LastHash string `json:"lastHash,omitempty"`
+type ResourceFieldHash struct {
+	Field    string `json:"field"`
+	LastHash string `json:"hash"`
 }
 
 // Define last job state

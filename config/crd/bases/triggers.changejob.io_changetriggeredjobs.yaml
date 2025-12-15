@@ -9134,17 +9134,25 @@ spec:
                 items:
                   description: Watched ResouceHash object
                   properties:
+                    apiVersion:
+                      description: API group of the resource, e.g., apps/v1, example.io/v1beta
+                      type: string
                     fields:
                       description: 'Optional: fields to watch within the resource'
                       items:
-                        type: string
+                        properties:
+                          field:
+                            type: string
+                          hash:
+                            type: string
+                        required:
+                        - field
+                        - hash
+                        type: object
                       type: array
                     kind:
                       description: Kind of the Kubernetes resource, e.g., ConfigMap,
                         Secret
-                      type: string
-                    lastHash:
-                      description: Last hash of the resource
                       type: string
                     name:
                       description: Name of the resource
@@ -9154,6 +9162,8 @@ spec:
                         resources)
                       type: string
                   required:
+                  - apiVersion
+                  - fields
                   - kind
                   - name
                   type: object
