@@ -53,7 +53,7 @@ spec:
                 description: 'Optional: cooldown period between triggers'
                 type: string
               delay:
-                default: 30s
+                default: 0s
                 description: 'Optional: time delay to start the job'
                 type: string
               jobTemplate:

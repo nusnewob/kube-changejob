@@ -51,7 +51,7 @@ type ChangeTriggeredJobSpec struct {
 
 	// Optional: time delay to start the job
 	// +optional
-	// +default:value="30s"
+	// +default:value="0s"
 	Delay metav1.Duration `json:"delay,omitempty"`
 }
 
