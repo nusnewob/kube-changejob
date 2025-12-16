@@ -46,7 +46,7 @@ type ChangeTriggeredJobSpec struct {
 
 	// Optional: cooldown period between triggers
 	// +optional
-	// +default:value="30s"
+	// +default:value="60s"
 	Cooldown metav1.Duration `json:"cooldown,omitempty"`
 }
 

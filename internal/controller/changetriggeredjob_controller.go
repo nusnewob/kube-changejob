@@ -77,6 +77,13 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	if changeJob.Status.LastTriggeredTime != nil && now.Sub(changeJob.Status.LastTriggeredTime.Time) < changeJob.Spec.Cooldown.Duration {
+		if changeJob.Spec.Cooldown.Duration < PollInterval {
+			return ctrl.Result{RequeueAfter: changeJob.Spec.Cooldown.Duration}, nil
+		}
+		return ctrl.Result{RequeueAfter: PollInterval}, nil
+	}
+
 	log.Info("ChangeTriggeredJob %s triggered", changeJob.Name)
 	log.Info("Creating Job")
 	job := &batchv1.Job{}
@@ -100,9 +107,7 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Always requeue to keep polling
-	return ctrl.Result{
-		RequeueAfter: PollInterval,
-	}, nil
+	return ctrl.Result{RequeueAfter: PollInterval}, nil
 }
 
 // PollResources polls the resources referenced by the given ChangeTriggeredJob.

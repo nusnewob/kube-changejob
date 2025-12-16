@@ -49,7 +49,7 @@ spec:
                 - Any
                 type: string
               cooldown:
-                default: 30s
+                default: 60s
                 description: 'Optional: cooldown period between triggers'
                 type: string
               jobTemplate:

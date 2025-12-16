@@ -58,7 +58,7 @@ type ChangeTriggeredJobCustomDefaulter struct {
 }
 
 var DefaultValues = ChangeTriggeredJobCustomDefaulter{
-	DefaultCooldown:        30 * time.Second,
+	DefaultCooldown:        60 * time.Second,
 	DefaultCondition:       triggersv1alpha.TriggerConditionAny,
 	ChangedAtAnnotationKey: "changetriggeredjobs.triggers.changejob.dev/changed-at",
 }
