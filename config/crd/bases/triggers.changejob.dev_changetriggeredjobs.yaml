@@ -52,10 +52,6 @@ spec:
                 default: 30s
                 description: 'Optional: cooldown period between triggers'
                 type: string
-              delay:
-                default: 0s
-                description: 'Optional: time delay to start the job'
-                type: string
               jobTemplate:
                 description: jobTemplate defines the job that will be created when
                   executing a Job.
@@ -9161,11 +9157,6 @@ spec:
                       description: Namespace of the resource (optional for cluster-scoped
                         resources)
                       type: string
-                  required:
-                  - apiVersion
-                  - fields
-                  - kind
-                  - name
                   type: object
                 type: array
             type: object

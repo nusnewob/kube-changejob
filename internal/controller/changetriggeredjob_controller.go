@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +42,10 @@ type ChangeTriggeredJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+const (
+	PollInterval = 60 * time.Second
+)
+
 // +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs/finalizers,verbs=update
@@ -61,39 +66,15 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	poller := resourcepoller.Poller{
-		Client: r.Client,
+	now := time.Now()
+
+	changed, updatedStatuses, err := r.pollResources(ctx, &changeJob)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
-	changeCount := 0
-	for _, ref := range changeJob.Spec.Resources {
-		result, err := poller.Poll(ctx, ref)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		last, found := getResourceRefStatus(changeJob.Status.ResourceHashes, ref)
-		if !found {
-			return ctrl.Result{}, err
-		}
-
-		nodiff := cmp.Equal(last, result)
-		if !nodiff {
-			changeCount++
-		}
-	}
-
-	if changeCount > 0 {
-		switch changeJob.Spec.Condition {
-		case triggersv1alpha.TriggerConditionAny:
-			log.Info("TriggerCondition satisfied: Some resources are changed")
-		case triggersv1alpha.TriggerConditionAll:
-			if changeCount < len(changeJob.Spec.Resources) {
-				log.Info("TriggerCondition not satisfied: Some resources are changed")
-				return ctrl.Result{}, nil
-			}
-			log.Info("TriggerCondition satisfied: All resources are changed")
-		}
+	if !changed {
+		return ctrl.Result{}, err
 	}
 
 	log.Info("ChangeTriggeredJob %s triggered", changeJob.Name)
@@ -110,20 +91,60 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	changeJob.Status.LastTriggeredTime = &metav1.Time{Time: now}
+	changeJob.Status.LastJobName = fmt.Sprintf("change-triggered-job-%s", changeJob.Name)
+	// changeJob.Status.LastJobStatus = ""
+	changeJob.Status.ResourceHashes = updatedStatuses
+	if err := r.Status().Update(ctx, &changeJob); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Always requeue to keep polling
+	return ctrl.Result{
+		RequeueAfter: PollInterval,
+	}, nil
 }
 
-// Get ResourceReference Hash
-func getResourceRefStatus(statuses []triggersv1alpha.ResourceReferenceStatus, ref triggersv1alpha.ResourceReference) (triggersv1alpha.ResourceReferenceStatus, bool) {
-	for _, status := range statuses {
-		if status.APIVersion == ref.APIVersion &&
-			status.Kind == ref.Kind &&
-			status.Name == ref.Name &&
-			status.Namespace == ref.Namespace {
-			return status, true
+// PollResources polls the resources referenced by the given ChangeTriggeredJob.
+func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) (bool, []triggersv1alpha.ResourceReferenceStatus, error) {
+	poller := resourcepoller.Poller{Client: r.Client}
+
+	existing := resourcepoller.IndexResourceStatuses(changeJob.Status.ResourceHashes)
+	updated := make([]triggersv1alpha.ResourceReferenceStatus, 0, len(changeJob.Spec.Resources))
+
+	changed := false
+	changeCount := 0
+
+	for _, ref := range changeJob.Spec.Resources {
+		result, err := poller.Poll(ctx, ref)
+		if err != nil {
+			return false, nil, err
+		}
+
+		key := resourcepoller.ResourceKey(ref.APIVersion, ref.Kind, ref.Namespace, ref.Name)
+
+		last, found := existing[key]
+		if !found || !cmp.Equal(last, result) {
+			changeCount++
+		}
+
+		updated = append(updated, result)
+	}
+
+	if changeCount > 0 {
+		switch changeJob.Spec.Condition {
+		case triggersv1alpha.TriggerConditionAny:
+			changed = true
+		case triggersv1alpha.TriggerConditionAll:
+			if changeCount < len(changeJob.Spec.Resources) {
+				changed = false
+			} else {
+				changed = true
+			}
 		}
 	}
-	return triggersv1alpha.ResourceReferenceStatus{}, false
+
+	return changed, updated, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

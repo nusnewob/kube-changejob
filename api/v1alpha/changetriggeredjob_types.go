@@ -48,17 +48,12 @@ type ChangeTriggeredJobSpec struct {
 	// +optional
 	// +default:value="30s"
 	Cooldown metav1.Duration `json:"cooldown,omitempty"`
-
-	// Optional: time delay to start the job
-	// +optional
-	// +default:value="0s"
-	Delay metav1.Duration `json:"delay,omitempty"`
 }
 
 // Watched Resource object
 type ResourceReference struct {
 	// API group of the resource, e.g., apps/v1, example.io/v1beta
-	// + required
+	// +required
 	APIVersion string `json:"apiVersion"`
 
 	// Kind of the Kubernetes resource, e.g., ConfigMap, Secret
@@ -129,15 +124,15 @@ type ChangeTriggeredJobStatus struct {
 // Watched ResouceHash object
 type ResourceReferenceStatus struct {
 	// API group of the resource, e.g., apps/v1, example.io/v1beta
-	// + required
+	// +optional
 	APIVersion string `json:"apiVersion"`
 
 	// Kind of the Kubernetes resource, e.g., ConfigMap, Secret
-	// +required
+	// +optional
 	Kind string `json:"kind"`
 
 	// Name of the resource
-	// +required
+	// +optional
 	Name string `json:"name"`
 
 	// Namespace of the resource (optional for cluster-scoped resources)
@@ -145,7 +140,7 @@ type ResourceReferenceStatus struct {
 	Namespace string `json:"namespace,omitempty"`
 
 	// Optional: fields to watch within the resource
-	// +required
+	// +optional
 	Fields []ResourceFieldHash `json:"fields,omitempty"`
 }
 

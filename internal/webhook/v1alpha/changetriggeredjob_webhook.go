@@ -53,14 +53,12 @@ func SetupChangeTriggeredJobWebhookWithManager(mgr ctrl.Manager) error {
 // as it is used only for temporary operations and does not need to be deeply copied.
 type ChangeTriggeredJobCustomDefaulter struct {
 	DefaultCooldown        time.Duration
-	DefaultDelay           time.Duration
 	DefaultCondition       triggersv1alpha.TriggerCondition
 	ChangedAtAnnotationKey string
 }
 
 var DefaultValues = ChangeTriggeredJobCustomDefaulter{
 	DefaultCooldown:        30 * time.Second,
-	DefaultDelay:           0 * time.Second,
 	DefaultCondition:       triggersv1alpha.TriggerConditionAny,
 	ChangedAtAnnotationKey: "changetriggeredjobs.triggers.changejob.dev/changed-at",
 }
@@ -79,11 +77,6 @@ func (d *ChangeTriggeredJobCustomDefaulter) Default(_ context.Context, obj runti
 	// Optional: default cooldown if unset
 	if changetriggeredjob.Spec.Cooldown.Duration == 0 {
 		changetriggeredjob.Spec.Cooldown = metav1.Duration{Duration: DefaultValues.DefaultCooldown}
-	}
-
-	// Optional: default delay if unset
-	if changetriggeredjob.Spec.Delay.Duration == 0 {
-		changetriggeredjob.Spec.Delay = metav1.Duration{Duration: DefaultValues.DefaultDelay}
 	}
 
 	// Optional: default trigger condition if unset
