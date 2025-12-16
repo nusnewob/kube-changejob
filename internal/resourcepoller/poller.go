@@ -9,6 +9,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
 )
 
 // Poller fetches and hashes Kubernetes resources
@@ -16,14 +18,8 @@ type Poller struct {
 	Client client.Client
 }
 
-// PollResult contains extracted data and its hash
-type PollResult struct {
-	Hash string
-	Data map[string]any
-}
-
 // Poll fetches the resource, extracts fields, and hashes them
-func (p *Poller) Poll(ctx context.Context, ref ResourceRef) (*PollResult, error) {
+func (p *Poller) Poll(ctx context.Context, ref triggersv1alpha.ResourceReference) (*triggersv1alpha.ResourceReferenceStatus, error) {
 	obj := &unstructured.Unstructured{}
 	obj.SetAPIVersion(ref.APIVersion)
 	obj.SetKind(ref.Kind)
@@ -39,6 +35,7 @@ func (p *Poller) Poll(ctx context.Context, ref ResourceRef) (*PollResult, error)
 		return nil, err
 	}
 
+	hashes := make([]triggersv1alpha.ResourceFieldHash, 0, len(ref.Fields))
 	extracted := make(map[string]any)
 
 	for _, field := range ref.Fields {
@@ -51,17 +48,23 @@ func (p *Poller) Poll(ctx context.Context, ref ResourceRef) (*PollResult, error)
 		}
 		if found {
 			extracted[field] = val
+			hash, err := hashObject(extracted)
+			if err != nil {
+				return nil, err
+			}
+			hashes = append(hashes, triggersv1alpha.ResourceFieldHash{
+				Field:    field,
+				LastHash: hash,
+			})
 		}
 	}
 
-	hash, err := hashObject(extracted)
-	if err != nil {
-		return nil, err
-	}
-
-	return &PollResult{
-		Hash: hash,
-		Data: extracted,
+	return &triggersv1alpha.ResourceReferenceStatus{
+		APIVersion: ref.APIVersion,
+		Kind:       ref.Kind,
+		Name:       ref.Name,
+		Namespace:  ref.Namespace,
+		Fields:     hashes,
 	}, nil
 }
 
