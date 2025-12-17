@@ -65,8 +65,6 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	now := time.Now()
-
 	changed, updatedStatuses, err := r.pollResources(ctx, &changeJob)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -76,22 +74,17 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	if changeJob.Status.LastTriggeredTime != nil && now.Sub(changeJob.Status.LastTriggeredTime.Time) < changeJob.Spec.Cooldown.Duration {
-		if changeJob.Spec.Cooldown.Duration < PollInterval {
-			return ctrl.Result{RequeueAfter: changeJob.Spec.Cooldown.Duration}, nil
+	if changeJob.Status.LastTriggeredTime == nil || time.Since(changeJob.Status.LastTriggeredTime.Time) >= changeJob.Spec.Cooldown.Duration {
+		log.Info("ChangeTriggeredJob %s triggered", changeJob.Name)
+		log.Info("Creating Job")
+		job, err := r.triggerJob(ctx, &changeJob)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
-		return ctrl.Result{RequeueAfter: PollInterval}, nil
-	}
 
-	log.Info("ChangeTriggeredJob %s triggered", changeJob.Name)
-	log.Info("Creating Job")
-	job, err := r.triggerJob(ctx, &changeJob)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	if err := r.updateStatus(ctx, &changeJob, job, updatedStatuses); err != nil {
-		return ctrl.Result{}, err
+		if err := r.updateStatus(ctx, &changeJob, job, updatedStatuses); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	// Always requeue to keep polling
