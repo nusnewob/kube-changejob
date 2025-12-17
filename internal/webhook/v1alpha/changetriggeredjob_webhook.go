@@ -40,7 +40,11 @@ var changetriggeredjoblog = logf.Log.WithName("changetriggeredjob-resource")
 func SetupChangeTriggeredJobWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).For(&triggersv1alpha.ChangeTriggeredJob{}).
 		WithValidator(&ChangeTriggeredJobCustomValidator{}).
-		WithDefaulter(&ChangeTriggeredJobCustomDefaulter{}).
+		WithDefaulter(&ChangeTriggeredJobCustomDefaulter{
+			DefaultCooldown:        DefaultValues.DefaultCooldown,
+			DefaultCondition:       DefaultValues.DefaultCondition,
+			ChangedAtAnnotationKey: DefaultValues.ChangedAtAnnotationKey,
+		}).
 		Complete()
 }
 

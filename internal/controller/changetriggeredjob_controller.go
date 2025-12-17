@@ -32,7 +32,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
-	resourcepoller "github.com/nusnewob/kube-changejob/internal/resourcepoller"
 )
 
 // ChangeTriggeredJobReconciler reconciles a ChangeTriggeredJob object
@@ -86,6 +85,23 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	log.Info("ChangeTriggeredJob %s triggered", changeJob.Name)
 	log.Info("Creating Job")
+	job, err := r.triggerJob(ctx, &changeJob)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.updateStatus(ctx, &changeJob, job, updatedStatuses); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Always requeue to keep polling
+	return ctrl.Result{RequeueAfter: PollInterval}, nil
+}
+
+// Trigger Job
+func (r *ChangeTriggeredJobReconciler) triggerJob(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) (*batchv1.Job, error) {
+	log := r.Log.WithValues("ChangeTriggeredJob", &changeJob.Name)
+
 	job := &batchv1.Job{}
 	job.ObjectMeta = metav1.ObjectMeta{
 		Name:        fmt.Sprintf("change-triggered-job-%s", changeJob.Name),
@@ -94,27 +110,48 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 		Labels:      changeJob.Labels,
 	}
 	job.Spec = changeJob.Spec.JobTemplate.Spec
-	if err := controllerutil.SetControllerReference(&changeJob, job, r.Scheme); err != nil {
-		return ctrl.Result{}, err
+
+	if err := controllerutil.SetControllerReference(changeJob, job, r.Scheme); err != nil {
+		return nil, err
 	}
 
-	changeJob.Status.LastTriggeredTime = &metav1.Time{Time: now}
+	if err := r.Create(ctx, job); err != nil {
+		return nil, err
+	}
+
+	log.Info("Job created", "job", job.Name)
+	return job, nil
+}
+
+// Update Status
+func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob, job *batchv1.Job, status []triggersv1alpha.ResourceReferenceStatus) error {
+	log := r.Log.WithValues("ChangeTriggeredJob", &changeJob.Name)
+
 	changeJob.Status.LastJobName = fmt.Sprintf("change-triggered-job-%s", changeJob.Name)
-	// changeJob.Status.LastJobStatus = ""
-	changeJob.Status.ResourceHashes = updatedStatuses
-	if err := r.Status().Update(ctx, &changeJob); err != nil {
-		return ctrl.Result{}, err
+	changeJob.Status.LastTriggeredTime = job.Status.StartTime
+
+	if job.Status.Failed != 0 {
+		changeJob.Status.LastJobStatus = triggersv1alpha.JobStateFailed
+	} else if job.Status.Active != 0 {
+		changeJob.Status.LastJobStatus = triggersv1alpha.JobStateActive
+	} else if job.Status.Succeeded != 0 {
+		changeJob.Status.LastJobStatus = triggersv1alpha.JobStateSucceeded
 	}
 
-	// Always requeue to keep polling
-	return ctrl.Result{RequeueAfter: PollInterval}, nil
+	changeJob.Status.ResourceHashes = status
+	if err := r.Status().Update(ctx, changeJob); err != nil {
+		return err
+	}
+
+	log.Info("Status updated", "job", job.Name)
+	return nil
 }
 
 // PollResources polls the resources referenced by the given ChangeTriggeredJob.
 func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) (bool, []triggersv1alpha.ResourceReferenceStatus, error) {
-	poller := resourcepoller.Poller{Client: r.Client}
+	poller := Poller{Client: r.Client}
 
-	existing := resourcepoller.IndexResourceStatuses(changeJob.Status.ResourceHashes)
+	existing := IndexResourceStatuses(changeJob.Status.ResourceHashes)
 	updated := make([]triggersv1alpha.ResourceReferenceStatus, 0, len(changeJob.Spec.Resources))
 
 	changed := false
@@ -126,7 +163,7 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 			return false, nil, err
 		}
 
-		key := resourcepoller.ResourceKey(ref.APIVersion, ref.Kind, ref.Namespace, ref.Name)
+		key := ResourceKey(ref.APIVersion, ref.Kind, ref.Namespace, ref.Name)
 
 		last, found := existing[key]
 		if !found || !cmp.Equal(last, result) {
