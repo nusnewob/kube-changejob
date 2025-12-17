@@ -102,12 +102,14 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 func (r *ChangeTriggeredJobReconciler) triggerJob(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) (*batchv1.Job, error) {
 	log := r.Log.WithValues("ChangeTriggeredJob", &changeJob.Name)
 
+	// Generate unique job name using GenerateName to stay within K8s 63 char label limit
+	// The job controller will add a unique suffix
 	job := &batchv1.Job{}
 	job.ObjectMeta = metav1.ObjectMeta{
-		Name:        fmt.Sprintf("change-triggered-job-%s", changeJob.Name),
-		Namespace:   changeJob.Namespace,
-		Annotations: changeJob.Annotations,
-		Labels:      changeJob.Labels,
+		GenerateName: fmt.Sprintf("%s-", changeJob.Name),
+		Namespace:    changeJob.Namespace,
+		Annotations:  changeJob.Annotations,
+		Labels:       changeJob.Labels,
 	}
 	job.Spec = changeJob.Spec.JobTemplate.Spec
 
@@ -127,8 +129,14 @@ func (r *ChangeTriggeredJobReconciler) triggerJob(ctx context.Context, changeJob
 func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob, job *batchv1.Job, status []triggersv1alpha.ResourceReferenceStatus) error {
 	log := r.Log.WithValues("ChangeTriggeredJob", &changeJob.Name)
 
-	changeJob.Status.LastJobName = fmt.Sprintf("change-triggered-job-%s", changeJob.Name)
-	changeJob.Status.LastTriggeredTime = job.Status.StartTime
+	changeJob.Status.LastJobName = job.Name
+	// Use current time if StartTime is not set yet
+	if job.Status.StartTime != nil {
+		changeJob.Status.LastTriggeredTime = job.Status.StartTime
+	} else {
+		now := metav1.Now()
+		changeJob.Status.LastTriggeredTime = &now
+	}
 
 	if job.Status.Failed != 0 {
 		changeJob.Status.LastJobStatus = triggersv1alpha.JobStateFailed
