@@ -44,9 +44,9 @@ const (
 // +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs/finalizers,verbs=update
 
 // Manage triggered jobs
-// +kubebuilder:rbac:groups=batch,resources=job,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // Watched resources
-// +kubebuilder:rbac:groups="",resources="",verbs=get;list;watch
+// +kubebuilder:rbac:groups="*",resources="*",verbs=get;list;watch
 
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.22.4/pkg/reconcile

@@ -5,9 +5,9 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - ""
+  - '*'
   resources:
-  - ""
+  - '*'
   verbs:
   - get
   - list
@@ -15,7 +15,7 @@ rules:
 - apiGroups:
   - batch
   resources:
-  - job
+  - jobs
   verbs:
   - create
   - delete
