@@ -23,6 +23,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/restmapper"
 
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
 	// TODO (user): Add any additional imports if needed
@@ -41,7 +43,15 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 		ctx = context.Background()
 		obj = &triggersv1alpha.ChangeTriggeredJob{}
 		oldObj = &triggersv1alpha.ChangeTriggeredJob{}
-		validator = ChangeTriggeredJobCustomValidator{}
+
+		// Create RESTMapper for validation
+		dc, err := discovery.NewDiscoveryClientForConfig(cfg)
+		Expect(err).NotTo(HaveOccurred())
+		groupResources, err := restmapper.GetAPIGroupResources(dc)
+		Expect(err).NotTo(HaveOccurred())
+		mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
+
+		validator = ChangeTriggeredJobCustomValidator{Mapper: mapper}
 		Expect(validator).NotTo(BeNil(), "Expected validator to be initialized")
 		defaulter = ChangeTriggeredJobCustomDefaulter{}
 		Expect(defaulter).NotTo(BeNil(), "Expected defaulter to be initialized")
@@ -174,11 +184,13 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 					APIVersion: "v1",
 					Kind:       "ConfigMap",
 					Name:       "test-cm1",
+					Namespace:  "default",
 				},
 				{
 					APIVersion: "v1",
 					Kind:       "Secret",
 					Name:       "test-secret",
+					Namespace:  "default",
 				},
 			}
 
@@ -217,6 +229,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 					APIVersion: "v1",
 					Kind:       "ConfigMap",
 					Name:       "test-cm",
+					Namespace:  "default",
 				},
 			}
 
@@ -226,6 +239,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 					APIVersion: "v1",
 					Kind:       "ConfigMap",
 					Name:       "test-cm-updated",
+					Namespace:  "default",
 				},
 			}
 

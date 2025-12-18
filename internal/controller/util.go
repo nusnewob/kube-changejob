@@ -1,0 +1,258 @@
+/*
+Copyright 2025 Bowen Sun.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package controller
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	batchv1 "k8s.io/api/batch/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/google/go-cmp/cmp"
+	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
+)
+
+// Poller fetches and hashes Kubernetes resources
+type Poller struct {
+	Client client.Client
+}
+
+// Trigger Job
+func (r *ChangeTriggeredJobReconciler) triggerJob(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) (*batchv1.Job, error) {
+	log := r.Log.WithValues("ChangeTriggeredJob", &changeJob.Name)
+
+	// Generate unique job name using GenerateName to stay within K8s 63 char label limit
+	// The job controller will add a unique suffix
+	job := &batchv1.Job{}
+	job.ObjectMeta = metav1.ObjectMeta{
+		GenerateName: fmt.Sprintf("%s-", changeJob.Name),
+		Namespace:    changeJob.Namespace,
+		Annotations:  changeJob.Annotations,
+		Labels:       changeJob.Labels,
+	}
+	job.Spec = changeJob.Spec.JobTemplate.Spec
+
+	if err := controllerutil.SetControllerReference(changeJob, job, r.Scheme); err != nil {
+		return nil, err
+	}
+
+	if err := r.Create(ctx, job); err != nil {
+		return nil, err
+	}
+
+	log.Info("Job created", "job", job.Name)
+	return job, nil
+}
+
+// Poll fetches the resource, extracts fields, and hashes them
+func (p *Poller) Poll(ctx context.Context, ref triggersv1alpha.ResourceReference) (triggersv1alpha.ResourceReferenceStatus, error) {
+	obj := &unstructured.Unstructured{}
+	obj.SetAPIVersion(ref.APIVersion)
+	obj.SetKind(ref.Kind)
+
+	key := client.ObjectKey{
+		Name: ref.Name,
+	}
+	if ref.Namespace != "" {
+		key.Namespace = ref.Namespace
+	}
+
+	if err := p.Client.Get(ctx, key, obj); err != nil {
+		return triggersv1alpha.ResourceReferenceStatus{}, err
+	}
+
+	hashes := make([]triggersv1alpha.ResourceFieldHash, 0, len(ref.Fields))
+	extracted := make(map[string]any)
+
+	for _, field := range ref.Fields {
+		val, found, err := unstructured.NestedFieldNoCopy(
+			obj.Object,
+			strings.Split(field, ".")...,
+		)
+		if err != nil {
+			return triggersv1alpha.ResourceReferenceStatus{}, err
+		}
+		if found {
+			extracted[field] = val
+			hash, err := HashObject(extracted)
+			if err != nil {
+				return triggersv1alpha.ResourceReferenceStatus{}, err
+			}
+			hashes = append(hashes, triggersv1alpha.ResourceFieldHash{
+				Field:    field,
+				LastHash: hash,
+			})
+		}
+	}
+
+	return triggersv1alpha.ResourceReferenceStatus{
+		APIVersion: ref.APIVersion,
+		Kind:       ref.Kind,
+		Name:       ref.Name,
+		Namespace:  ref.Namespace,
+		Fields:     hashes,
+	}, nil
+}
+
+// PollResources polls the resources referenced by the given ChangeTriggeredJob.
+func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) (bool, []triggersv1alpha.ResourceReferenceStatus, error) {
+	poller := Poller{Client: r.Client}
+
+	existing := IndexResourceStatuses(changeJob.Status.ResourceHashes)
+	updated := make([]triggersv1alpha.ResourceReferenceStatus, 0, len(changeJob.Spec.Resources))
+
+	changed := false
+	changeCount := 0
+
+	for _, ref := range changeJob.Spec.Resources {
+		result, err := poller.Poll(ctx, ref)
+		if err != nil {
+			return false, nil, err
+		}
+
+		key := ResourceKey(ref.APIVersion, ref.Kind, ref.Namespace, ref.Name)
+
+		last, found := existing[key]
+		if !found || !cmp.Equal(last, result) {
+			changeCount++
+		}
+
+		updated = append(updated, result)
+	}
+
+	if changeCount > 0 {
+		switch changeJob.Spec.Condition {
+		case triggersv1alpha.TriggerConditionAny:
+			changed = true
+		case triggersv1alpha.TriggerConditionAll:
+			if changeCount < len(changeJob.Spec.Resources) {
+				changed = false
+			} else {
+				changed = true
+			}
+		}
+	}
+
+	return changed, updated, nil
+}
+
+// Update Status
+func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob, job *batchv1.Job, status []triggersv1alpha.ResourceReferenceStatus) error {
+	log := r.Log.WithValues("ChangeTriggeredJob", &changeJob.Name)
+
+	changeJob.Status.LastJobName = job.Name
+	// Use current time if StartTime is not set yet
+	if job.Status.StartTime != nil {
+		changeJob.Status.LastTriggeredTime = job.Status.StartTime
+	} else {
+		now := metav1.Now()
+		changeJob.Status.LastTriggeredTime = &now
+	}
+
+	if job.Status.Failed != 0 {
+		changeJob.Status.LastJobStatus = triggersv1alpha.JobStateFailed
+	} else if job.Status.Active != 0 {
+		changeJob.Status.LastJobStatus = triggersv1alpha.JobStateActive
+	} else if job.Status.Succeeded != 0 {
+		changeJob.Status.LastJobStatus = triggersv1alpha.JobStateSucceeded
+	}
+
+	changeJob.Status.ResourceHashes = status
+	if err := r.Status().Update(ctx, changeJob); err != nil {
+		return err
+	}
+
+	log.Info("Status updated", "job", job.Name)
+	return nil
+}
+
+// ValidateGVK validates the GroupVersionKind for a given APIVersion and Kind.
+func ValidateGVK(ctx context.Context, mapper meta.RESTMapper, apiVersion string, kind string, namespace string) (*schema.GroupVersionKind, error) {
+	gv, err := schema.ParseGroupVersion(apiVersion)
+	if err != nil {
+		return nil, fmt.Errorf("invalid apiVersion %q: %w", apiVersion, err)
+	}
+
+	// Find resource for Kind
+	mapping, err := mapper.RESTMapping(schema.GroupKind{Group: gv.Group, Kind: kind}, gv.Version)
+	if err != nil {
+		return nil, fmt.Errorf("unknown kind %q in apiVersion %q", kind, apiVersion)
+	}
+
+	if mapping.Scope.Name() == meta.RESTScopeNameNamespace && namespace == "" {
+		return nil, fmt.Errorf("namespace is required for namespaced resource %s", kind)
+	}
+	if mapping.Scope.Name() == meta.RESTScopeNameRoot && namespace != "" {
+		return nil, fmt.Errorf("cluster-scoped resource %s must not have namespace", kind)
+	}
+
+	return &mapping.GroupVersionKind, nil
+}
+
+// hashObject produces a stable hash for arbitrary JSON data
+func HashObject(obj map[string]any) (string, error) {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return "", err
+	}
+
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+// ResourceKey generates a unique key for a resource reference
+func ResourceKey(apiVersion, kind, namespace, name string) string {
+	if namespace == "" {
+		return apiVersion + "/" + kind + "/" + name
+	}
+	return apiVersion + "/" + kind + "/" + namespace + "/" + name
+}
+
+// IndexResourceStatuses indexes a list of resource statuses by their unique keys
+func IndexResourceStatuses(statuses []triggersv1alpha.ResourceReferenceStatus) map[string]triggersv1alpha.ResourceReferenceStatus {
+
+	matched := make(map[string]triggersv1alpha.ResourceReferenceStatus, len(statuses))
+
+	for _, status := range statuses {
+		key := ResourceKey(status.APIVersion, status.Kind, status.Namespace, status.Name)
+		matched[key] = status
+	}
+	return matched
+}
+
+// IndexResourceReferences indexes a list of resource references by their unique keys
+func IndexResourceReferences(references []triggersv1alpha.ResourceReference) map[string]triggersv1alpha.ResourceReference {
+
+	matched := make(map[string]triggersv1alpha.ResourceReference, len(references))
+
+	for _, ref := range references {
+		key := ResourceKey(ref.APIVersion, ref.Kind, ref.Namespace, ref.Name)
+		matched[key] = ref
+	}
+	return matched
+}
