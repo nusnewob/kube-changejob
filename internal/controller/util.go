@@ -22,6 +22,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"sort"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -48,12 +50,20 @@ func (r *ChangeTriggeredJobReconciler) triggerJob(ctx context.Context, changeJob
 
 	// Generate unique job name using GenerateName to stay within K8s 63 char label limit
 	// The job controller will add a unique suffix
+	var labels map[string]string
+	if changeJob.Labels != nil {
+		labels = maps.Clone(changeJob.Labels)
+	} else {
+		labels = make(map[string]string)
+	}
+	labels[DefaultLabel] = changeJob.Name
+
 	job := &batchv1.Job{}
 	job.ObjectMeta = metav1.ObjectMeta{
 		GenerateName: fmt.Sprintf("%s-", changeJob.Name),
 		Namespace:    changeJob.Namespace,
 		Annotations:  changeJob.Annotations,
-		Labels:       changeJob.Labels,
+		Labels:       labels,
 	}
 	job.Spec = changeJob.Spec.JobTemplate.Spec
 
@@ -186,14 +196,6 @@ func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJ
 		changeJob.Status.LastTriggeredTime = &now
 	}
 
-	if job.Status.Failed != 0 {
-		changeJob.Status.LastJobStatus = triggersv1alpha.JobStateFailed
-	} else if job.Status.Active != 0 {
-		changeJob.Status.LastJobStatus = triggersv1alpha.JobStateActive
-	} else if job.Status.Succeeded != 0 {
-		changeJob.Status.LastJobStatus = triggersv1alpha.JobStateSucceeded
-	}
-
 	changeJob.Status.ResourceHashes = status
 	if err := r.Status().Update(ctx, changeJob); err != nil {
 		return err
@@ -201,6 +203,34 @@ func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJ
 
 	log.Info("Status updated", "job", job.Name)
 	return nil
+}
+
+// Get a list of owned Jobs
+func (r *ChangeTriggeredJobReconciler) listOwnedJobs(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) ([]batchv1.Job, error) {
+	var jobs batchv1.JobList
+	if err := r.List(ctx, &jobs, client.InNamespace(changeJob.Namespace), client.MatchingLabels{"changejob.dev/owner": changeJob.Name}); err != nil {
+		return nil, err
+	}
+
+	return jobs.Items, nil
+}
+
+// Get latest owned Job
+func (r *ChangeTriggeredJobReconciler) latestOwnedJob(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) (*batchv1.Job, error) {
+	jobs, err := r.listOwnedJobs(ctx, changeJob)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(jobs) == 0 {
+		return nil, nil
+	}
+
+	sort.Slice(jobs, func(i, j int) bool {
+		return jobs[i].CreationTimestamp.After(jobs[j].CreationTimestamp.Time)
+	})
+
+	return &jobs[0], nil
 }
 
 // ValidateGVK validates the GroupVersionKind for a given APIVersion and Kind.

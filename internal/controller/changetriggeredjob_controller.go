@@ -37,6 +37,7 @@ type ChangeTriggeredJobReconciler struct {
 
 const (
 	PollInterval = 60 * time.Second
+	DefaultLabel = "changejob.dev/owner"
 )
 
 // +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs,verbs=get;list;watch;create;update;patch;delete
@@ -71,6 +72,24 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{RequeueAfter: PollInterval}, err
 		}
 		return ctrl.Result{RequeueAfter: PollInterval}, nil
+	}
+
+	// Update LastJobStatus status
+	lastJob, err := r.latestOwnedJob(ctx, &changeJob)
+	if err != nil && lastJob == nil {
+		return ctrl.Result{RequeueAfter: PollInterval}, err
+	}
+	if lastJob != nil {
+		if lastJob.Status.Failed != 0 {
+			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateFailed
+		} else if lastJob.Status.Active != 0 {
+			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateActive
+		} else if lastJob.Status.Succeeded != 0 {
+			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateSucceeded
+		}
+		if err := r.Status().Update(ctx, &changeJob); err != nil {
+			return ctrl.Result{RequeueAfter: PollInterval}, err
+		}
 	}
 
 	if !changed {
