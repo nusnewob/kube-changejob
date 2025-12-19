@@ -90,6 +90,18 @@ func (p *Poller) Poll(ctx context.Context, ref triggersv1alpha.ResourceReference
 	extracted := make(map[string]any)
 
 	for _, field := range ref.Fields {
+		if field == "*" {
+			val, err := HashObject(obj.Object)
+			if err != nil {
+				return triggersv1alpha.ResourceReferenceStatus{}, err
+			}
+			hashes = append(hashes, triggersv1alpha.ResourceFieldHash{
+				Field:    field,
+				LastHash: val,
+			})
+			continue
+		}
+
 		val, found, err := unstructured.NestedFieldNoCopy(
 			obj.Object,
 			strings.Split(field, ".")...,

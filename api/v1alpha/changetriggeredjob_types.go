@@ -70,6 +70,7 @@ type ResourceReference struct {
 
 	// Optional: JSON Path of fields to watch within the resource
 	// +optional
+	// +kubebuilder:default={"*"}
 	Fields []string `json:"fields,omitempty"`
 }
 
