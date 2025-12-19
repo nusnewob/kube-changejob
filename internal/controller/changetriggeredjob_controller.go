@@ -56,28 +56,39 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 	var changeJob triggersv1alpha.ChangeTriggeredJob
 	if err := r.Get(ctx, req.NamespacedName, &changeJob); err != nil {
 		log.Error(err, "unable to fetch ChangeTriggeredJob")
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{RequeueAfter: PollInterval}, client.IgnoreNotFound(err)
 	}
 
 	changed, updatedStatuses, err := r.pollResources(ctx, &changeJob)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: PollInterval}, err
+	}
+
+	// Initialize resource hashes on first run (no job triggered)
+	if changeJob.Status.ResourceHashes == nil {
+		changeJob.Status.ResourceHashes = updatedStatuses
+		if err := r.Status().Update(ctx, &changeJob); err != nil {
+			return ctrl.Result{RequeueAfter: PollInterval}, err
+		}
+		return ctrl.Result{RequeueAfter: PollInterval}, nil
 	}
 
 	if !changed {
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: PollInterval}, nil
 	}
 
-	if changeJob.Status.LastTriggeredTime == nil || time.Since(changeJob.Status.LastTriggeredTime.Time) >= changeJob.Spec.Cooldown.Duration {
-		log.Info("ChangeTriggeredJob %s triggered", changeJob.Name)
+	// Check if we should trigger (first time or after cooldown)
+	if changeJob.Status.LastTriggeredTime == nil ||
+		time.Since(changeJob.Status.LastTriggeredTime.Time) >= changeJob.Spec.Cooldown.Duration {
+		log.Info("ChangeTriggeredJob triggered", "name", changeJob.Name)
 		log.Info("Creating Job")
 		job, err := r.triggerJob(ctx, &changeJob)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: PollInterval}, err
 		}
 
 		if err := r.updateStatus(ctx, &changeJob, job, updatedStatuses); err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: PollInterval}, err
 		}
 	}
 

@@ -31,6 +31,10 @@ import (
 )
 
 var _ = Describe("Poller", func() {
+	const testValue1 = "value1"
+	const testValue2 = "value2"
+	const testValue3 = "value3"
+
 	var (
 		poller    Poller
 		ctx       context.Context
@@ -53,8 +57,8 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"key1": "value1",
-					"key2": "value2",
+					"key1": testValue1,
+					"key2": testValue2,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -93,7 +97,7 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"key1": "value1",
+					"key1": testValue1,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -113,7 +117,7 @@ var _ = Describe("Poller", func() {
 
 			By("Updating the ConfigMap")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: namespace}, cm)).Should(Succeed())
-			cm.Data["key1"] = "value2"
+			cm.Data["key1"] = testValue2
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			By("Second poll")
@@ -137,9 +141,9 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"key1": "value1",
-					"key2": "value2",
-					"key3": "value3",
+					"key1": testValue1,
+					"key2": testValue2,
+					"key3": testValue3,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -268,7 +272,7 @@ var _ = Describe("Poller", func() {
 		It("Should hash objects consistently", func() {
 			By("Hashing the same object twice")
 			obj := map[string]any{
-				"key1": "value1",
+				"key1": testValue1,
 				"key2": 123,
 			}
 
