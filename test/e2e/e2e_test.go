@@ -362,15 +362,14 @@ var _ = Describe("E2E Tests", Ordered, func() {
 
 	Context("ChangeTriggeredJob", func() {
 		BeforeEach(func() {
-			// Clean up any existing resources before each test
 			By("cleaning up existing test resources")
-			cmd := exec.Command("kubectl", "delete", "changetriggeredjob", "--all", "-n", testNamespace)
+			cmd := exec.Command("kubectl", "delete", "changetriggeredjob", "--all", "-n", testNamespace, "--ignore-not-found")
 			_, _ = utils.Run(cmd)
-			cmd = exec.Command("kubectl", "delete", "configmap", "--all", "-n", testNamespace)
+			cmd = exec.Command("kubectl", "delete", "configmap", "--all", "-n", testNamespace, "--ignore-not-found")
 			_, _ = utils.Run(cmd)
-			cmd = exec.Command("kubectl", "delete", "secret", "--all", "-n", testNamespace)
+			cmd = exec.Command("kubectl", "delete", "secret", "--all", "-n", testNamespace, "--ignore-not-found")
 			_, _ = utils.Run(cmd)
-			cmd = exec.Command("kubectl", "delete", "job", "--all", "-n", testNamespace)
+			cmd = exec.Command("kubectl", "delete", "job", "--all", "-n", testNamespace, "--ignore-not-found")
 			_, _ = utils.Run(cmd)
 			time.Sleep(5 * time.Second)
 		})
@@ -885,7 +884,7 @@ var _ = Describe("E2E Tests", Ordered, func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				By("waiting for initial reconciliation")
-				time.Sleep(10 * time.Second)
+				time.Sleep(30 * time.Second)
 
 				By("updating only the ConfigMap")
 				updateJSON := fmt.Sprintf(`{
@@ -904,9 +903,9 @@ var _ = Describe("E2E Tests", Ordered, func() {
 				_, err = utils.Run(cmd)
 				Expect(err).NotTo(HaveOccurred())
 
-				By("verifying no job was created yet")
-				time.Sleep(20 * time.Second)
-				cmd = exec.Command("kubectl", "get", "jobs", "-n", testNamespace, "-o", "jsonpath={.items[*].metadata.name}")
+				By("verifying no job was created yet after ConfigMap change")
+				time.Sleep(70 * time.Second)
+				cmd = exec.Command("kubectl", "get", "jobs", "-n", testNamespace, "-o", "jsonpath={.items[?(@.metadata.ownerReferences[0].name=='multi-resource-all-job')]}")
 				output, err := utils.Run(cmd)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(output).To(BeEmpty(), "No job should be created until all resources change")
@@ -931,7 +930,7 @@ var _ = Describe("E2E Tests", Ordered, func() {
 
 				By("verifying that a job was triggered after all resources changed")
 				Eventually(func(g Gomega) {
-					cmd := exec.Command("kubectl", "get", "jobs", "-n", testNamespace, "-o", "jsonpath={.items[*].metadata.name}")
+					cmd := exec.Command("kubectl", "get", "jobs", "-n", testNamespace, "-o", "jsonpath={.items[?(@.metadata.ownerReferences[0].name=='multi-resource-all-job')]}")
 					output, err := utils.Run(cmd)
 					g.Expect(err).NotTo(HaveOccurred())
 					g.Expect(output).NotTo(BeEmpty())
@@ -1029,6 +1028,403 @@ var _ = Describe("E2E Tests", Ordered, func() {
 					g.Expect(output).To(ContainSubstring("lastJobName"))
 					g.Expect(output).To(ContainSubstring("resourceHashes"))
 				}, 90*time.Second, 5*time.Second).Should(Succeed())
+			})
+		})
+
+		Context("Specific Field Watching", func() {
+			It("should trigger only when watched field changes", func() {
+				By("creating a ConfigMap with multiple fields")
+				configMapJSON := fmt.Sprintf(`{
+				  "apiVersion": "v1",
+				  "kind": "ConfigMap",
+				  "metadata": {
+				    "name": "field-watch-configmap",
+				    "namespace": "%s"
+				  },
+				  "data": {
+				    "watched": "value1",
+				    "ignored": "value1"
+				  }
+				}`, testNamespace)
+				cmd := exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(configMapJSON))
+				_, err := utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("creating ChangeTriggeredJob watching only 'data.watched' field")
+				changeJobJSON := fmt.Sprintf(`{
+				  "apiVersion": "triggers.changejob.dev/v1alpha",
+				  "kind": "ChangeTriggeredJob",
+				  "metadata": {
+				    "name": "field-specific-job",
+				    "namespace": "%s"
+				  },
+				  "spec": {
+				    "cooldown": "10s",
+				    "condition": "Any",
+				    "resources": [
+				      {
+				        "apiVersion": "v1",
+				        "kind": "ConfigMap",
+				        "name": "field-watch-configmap",
+				        "namespace": "%s",
+				        "fields": ["data.watched"]
+				      }
+				    ],
+				    "jobTemplate": {
+				      "spec": {
+				        "template": {
+				          "spec": {
+				            "containers": [
+				              {
+				                "name": "test",
+				                "image": "busybox",
+				                "command": ["echo", "Field changed!"]
+				              }
+				            ],
+				            "restartPolicy": "Never"
+				          }
+				        }
+				      }
+				    }
+				  }
+				}`, testNamespace, testNamespace)
+				cmd = exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(changeJobJSON))
+				_, err = utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("waiting for initial reconciliation")
+				time.Sleep(10 * time.Second)
+
+				By("updating the ignored field")
+				updateJSON := fmt.Sprintf(`{
+				  "apiVersion": "v1",
+				  "kind": "ConfigMap",
+				  "metadata": {
+				    "name": "field-watch-configmap",
+				    "namespace": "%s"
+				  },
+				  "data": {
+				    "watched": "value1",
+				    "ignored": "value2"
+				  }
+				}`, testNamespace)
+				cmd = exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(updateJSON))
+				_, err = utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("verifying no job was created")
+				time.Sleep(20 * time.Second)
+				cmd = exec.Command("kubectl", "get", "jobs", "-n", testNamespace, "-o", "jsonpath={.items[?(@.metadata.ownerReferences[0].name=='field-specific-job')]}")
+				output, err := utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(output).To(BeEmpty(), "No job should be created when unwatched field changes")
+
+				By("updating the watched field")
+				updateJSON2 := fmt.Sprintf(`{
+				  "apiVersion": "v1",
+				  "kind": "ConfigMap",
+				  "metadata": {
+				    "name": "field-watch-configmap",
+				    "namespace": "%s"
+				  },
+				  "data": {
+				    "watched": "value2",
+				    "ignored": "value2"
+				  }
+				}`, testNamespace)
+				cmd = exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(updateJSON2))
+				_, err = utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("verifying job was created after watched field changed")
+				Eventually(func(g Gomega) {
+					cmd := exec.Command("kubectl", "get", "jobs", "-n", testNamespace, "-o", "jsonpath={.items[?(@.metadata.ownerReferences[0].name=='field-specific-job')]}")
+					output, err := utils.Run(cmd)
+					g.Expect(err).NotTo(HaveOccurred())
+					g.Expect(output).NotTo(BeEmpty())
+				}, 90*time.Second, 5*time.Second).Should(Succeed())
+			})
+		})
+
+		Context("Webhook Validation", func() {
+			It("should reject ChangeTriggeredJob with no resources", func() {
+				By("attempting to create ChangeTriggeredJob without resources")
+				changeJobJSON := fmt.Sprintf(`{
+				  "apiVersion": "triggers.changejob.dev/v1alpha",
+				  "kind": "ChangeTriggeredJob",
+				  "metadata": {
+				    "name": "no-resources-job",
+				    "namespace": "%s"
+				  },
+				  "spec": {
+				    "cooldown": "10s",
+				    "condition": "Any",
+				    "resources": [],
+				    "jobTemplate": {
+				      "spec": {
+				        "template": {
+				          "spec": {
+				            "containers": [
+				              {
+				                "name": "test",
+				                "image": "busybox",
+				                "command": ["echo", "test"]
+				              }
+				            ],
+				            "restartPolicy": "Never"
+				          }
+				        }
+				      }
+				    }
+				  }
+				}`, testNamespace)
+				cmd := exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(changeJobJSON))
+				output, err := utils.Run(cmd)
+				Expect(err).To(HaveOccurred(), "Should reject empty resources list")
+				Expect(output).To(ContainSubstring("at least one resource"))
+			})
+
+			It("should reject ChangeTriggeredJob with invalid resource kind", func() {
+				By("attempting to create ChangeTriggeredJob with invalid resource")
+				changeJobJSON := fmt.Sprintf(`{
+				  "apiVersion": "triggers.changejob.dev/v1alpha",
+				  "kind": "ChangeTriggeredJob",
+				  "metadata": {
+				    "name": "invalid-kind-job",
+				    "namespace": "%s"
+				  },
+				  "spec": {
+				    "cooldown": "10s",
+				    "condition": "Any",
+				    "resources": [
+				      {
+				        "apiVersion": "v1",
+				        "kind": "InvalidKind",
+				        "name": "test",
+				        "namespace": "%s"
+				      }
+				    ],
+				    "jobTemplate": {
+				      "spec": {
+				        "template": {
+				          "spec": {
+				            "containers": [
+				              {
+				                "name": "test",
+				                "image": "busybox",
+				                "command": ["echo", "test"]
+				              }
+				            ],
+				            "restartPolicy": "Never"
+				          }
+				        }
+				      }
+				    }
+				  }
+				}`, testNamespace, testNamespace)
+				cmd := exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(changeJobJSON))
+				output, err := utils.Run(cmd)
+				Expect(err).To(HaveOccurred(), "Should reject invalid resource kind")
+				Expect(output).To(ContainSubstring("unknown kind"))
+			})
+
+			It("should reject namespaced resource without namespace", func() {
+				By("attempting to create ChangeTriggeredJob watching ConfigMap without namespace")
+				changeJobJSON := fmt.Sprintf(`{
+				  "apiVersion": "triggers.changejob.dev/v1alpha",
+				  "kind": "ChangeTriggeredJob",
+				  "metadata": {
+				    "name": "missing-namespace-job",
+				    "namespace": "%s"
+				  },
+				  "spec": {
+				    "cooldown": "10s",
+				    "condition": "Any",
+				    "resources": [
+				      {
+				        "apiVersion": "v1",
+				        "kind": "ConfigMap",
+				        "name": "test-cm"
+				      }
+				    ],
+				    "jobTemplate": {
+				      "spec": {
+				        "template": {
+				          "spec": {
+				            "containers": [
+				              {
+				                "name": "test",
+				                "image": "busybox",
+				                "command": ["echo", "test"]
+				              }
+				            ],
+				            "restartPolicy": "Never"
+				          }
+				        }
+				      }
+				    }
+				  }
+				}`, testNamespace)
+				cmd := exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(changeJobJSON))
+				output, err := utils.Run(cmd)
+				Expect(err).To(HaveOccurred(), "Should reject namespaced resource without namespace")
+				Expect(output).To(ContainSubstring("namespace is required"))
+			})
+		})
+
+		Context("Webhook Defaulting", func() {
+			It("should apply default cooldown and condition values", func() {
+				By("creating a ConfigMap")
+				configMapJSON := fmt.Sprintf(`{
+				  "apiVersion": "v1",
+				  "kind": "ConfigMap",
+				  "metadata": {
+				    "name": "default-test-cm",
+				    "namespace": "%s"
+				  },
+				  "data": {
+				    "key": "value"
+				  }
+				}`, testNamespace)
+				cmd := exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(configMapJSON))
+				_, err := utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("creating ChangeTriggeredJob without cooldown and condition")
+				changeJobJSON := fmt.Sprintf(`{
+				  "apiVersion": "triggers.changejob.dev/v1alpha",
+				  "kind": "ChangeTriggeredJob",
+				  "metadata": {
+				    "name": "default-values-job",
+				    "namespace": "%s"
+				  },
+				  "spec": {
+				    "resources": [
+				      {
+				        "apiVersion": "v1",
+				        "kind": "ConfigMap",
+				        "name": "default-test-cm",
+				        "namespace": "%s"
+				      }
+				    ],
+				    "jobTemplate": {
+				      "spec": {
+				        "template": {
+				          "spec": {
+				            "containers": [
+				              {
+				                "name": "test",
+				                "image": "busybox",
+				                "command": ["echo", "test"]
+				              }
+				            ],
+				            "restartPolicy": "Never"
+				          }
+				        }
+				      }
+				    }
+				  }
+				}`, testNamespace, testNamespace)
+				cmd = exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(changeJobJSON))
+				_, err = utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("verifying default values were applied")
+				cmd = exec.Command("kubectl", "get", "changetriggeredjob", "default-values-job", "-n", testNamespace, "-o", "json")
+				output, err := utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(output).To(ContainSubstring(`"cooldown": "1m0s"`), "Default cooldown should be 60s")
+				Expect(output).To(ContainSubstring(`"condition": "Any"`), "Default condition should be Any")
+
+				By("verifying changed-at annotation was added")
+				Expect(output).To(ContainSubstring("changetriggeredjobs.triggers.changejob.dev/changed-at"))
+			})
+		})
+
+		Context("Resource Hash Persistence", func() {
+			It("should not trigger on first creation (baseline established)", func() {
+				By("creating a ConfigMap")
+				configMapJSON := fmt.Sprintf(`{
+				  "apiVersion": "v1",
+				  "kind": "ConfigMap",
+				  "metadata": {
+				    "name": "baseline-cm",
+				    "namespace": "%s"
+				  },
+				  "data": {
+				    "key": "value1"
+				  }
+				}`, testNamespace)
+				cmd := exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(configMapJSON))
+				_, err := utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("creating ChangeTriggeredJob")
+				changeJobJSON := fmt.Sprintf(`{
+				  "apiVersion": "triggers.changejob.dev/v1alpha",
+				  "kind": "ChangeTriggeredJob",
+				  "metadata": {
+				    "name": "baseline-job",
+				    "namespace": "%s"
+				  },
+				  "spec": {
+				    "cooldown": "10s",
+				    "condition": "Any",
+				    "resources": [
+				      {
+				        "apiVersion": "v1",
+				        "kind": "ConfigMap",
+				        "name": "baseline-cm",
+				        "namespace": "%s"
+				      }
+				    ],
+				    "jobTemplate": {
+				      "spec": {
+				        "template": {
+				          "spec": {
+				            "containers": [
+				              {
+				                "name": "test",
+				                "image": "busybox",
+				                "command": ["echo", "test"]
+				              }
+				            ],
+				            "restartPolicy": "Never"
+				          }
+				        }
+				      }
+				    }
+				  }
+				}`, testNamespace, testNamespace)
+				cmd = exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(changeJobJSON))
+				_, err = utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("waiting for initial reconciliation")
+				time.Sleep(70 * time.Second)
+
+				By("verifying no job was created on first run")
+				cmd = exec.Command("kubectl", "get", "jobs", "-n", testNamespace, "-o", "jsonpath={.items[?(@.metadata.ownerReferences[0].name=='baseline-job')]}")
+				output, err := utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(output).To(BeEmpty(), "No job should be created on initial baseline establishment")
+
+				By("verifying resourceHashes were initialized")
+				cmd = exec.Command("kubectl", "get", "changetriggeredjob", "baseline-job", "-n", testNamespace, "-o", "jsonpath={.status.resourceHashes}")
+				output, err = utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(output).NotTo(BeEmpty(), "resourceHashes should be initialized")
 			})
 		})
 	})
