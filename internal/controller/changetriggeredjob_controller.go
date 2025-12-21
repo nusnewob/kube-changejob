@@ -75,20 +75,32 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Update LastJobStatus status
-	lastJob, err := r.latestOwnedJob(ctx, &changeJob)
-	if err != nil && lastJob == nil {
+	histories, err := r.listOwnedJobs(ctx, &changeJob)
+	if err != nil {
 		return ctrl.Result{RequeueAfter: PollInterval}, err
 	}
-	if lastJob != nil {
-		if lastJob.Status.Failed != 0 {
+	if len(histories) != 0 {
+		if histories[0].Status.Failed != 0 {
 			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateFailed
-		} else if lastJob.Status.Active != 0 {
+		} else if histories[0].Status.Active != 0 {
 			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateActive
-		} else if lastJob.Status.Succeeded != 0 {
+		} else if histories[0].Status.Succeeded != 0 {
 			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateSucceeded
 		}
 		if err := r.Status().Update(ctx, &changeJob); err != nil {
 			return ctrl.Result{RequeueAfter: PollInterval}, err
+		}
+	}
+
+	// Delete job history > changeJob.Spec.History
+	if len(histories) > int(changeJob.Spec.History) {
+		log.Info("Cleaning up old jobs", "total", len(histories), "limit", changeJob.Spec.History, "toDelete", len(histories)-int(changeJob.Spec.History))
+		for _, history := range histories[changeJob.Spec.History:] {
+			if err := r.Delete(ctx, &history); err != nil {
+				log.Error(err, "Failed to delete old job", "job", history.Name)
+				return ctrl.Result{RequeueAfter: PollInterval}, err
+			}
+			log.Info("Deleted old job", "job", history.Name)
 		}
 	}
 

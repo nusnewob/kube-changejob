@@ -212,25 +212,11 @@ func (r *ChangeTriggeredJobReconciler) listOwnedJobs(ctx context.Context, change
 		return nil, err
 	}
 
-	return jobs.Items, nil
-}
-
-// Get latest owned Job
-func (r *ChangeTriggeredJobReconciler) latestOwnedJob(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) (*batchv1.Job, error) {
-	jobs, err := r.listOwnedJobs(ctx, changeJob)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(jobs) == 0 {
-		return nil, nil
-	}
-
-	sort.Slice(jobs, func(i, j int) bool {
-		return jobs[i].CreationTimestamp.After(jobs[j].CreationTimestamp.Time)
+	sort.Slice(jobs.Items, func(i, j int) bool {
+		return jobs.Items[i].CreationTimestamp.After(jobs.Items[j].CreationTimestamp.Time)
 	})
 
-	return &jobs[0], nil
+	return jobs.Items, nil
 }
 
 // ValidateGVK validates the GroupVersionKind for a given APIVersion and Kind.

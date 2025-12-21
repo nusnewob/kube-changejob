@@ -266,6 +266,25 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			By("Expecting no validation error")
 			Expect(err).NotTo(HaveOccurred())
 		})
+
+		It("Should admit creation if history is valid", func() {
+			By("Creating a ChangeTriggeredJob with history = 3")
+			obj.Spec.History = 3
+			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+					Name:       "test-cm",
+					Namespace:  "default",
+				},
+			}
+
+			By("Calling ValidateCreate")
+			_, err := validator.ValidateCreate(ctx, obj)
+
+			By("Expecting no validation error")
+			Expect(err).NotTo(HaveOccurred())
+		})
 	})
 
 })

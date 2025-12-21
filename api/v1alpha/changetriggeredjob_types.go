@@ -48,6 +48,11 @@ type ChangeTriggeredJobSpec struct {
 	// +optional
 	// +default:value="60s"
 	Cooldown metav1.Duration `json:"cooldown,omitempty"`
+
+	// Optional: max job history to keep
+	// +optional
+	// +default:value=5
+	History int32 `json:"history,omitempty"`
 }
 
 // Watched Resource object

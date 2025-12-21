@@ -52,6 +52,11 @@ spec:
                 default: 60s
                 description: 'Optional: cooldown period between triggers'
                 type: string
+              history:
+                default: 5
+                description: 'Optional: max job history to keep'
+                format: int32
+                type: integer
               jobTemplate:
                 description: jobTemplate defines the job that will be created when
                   executing a Job.

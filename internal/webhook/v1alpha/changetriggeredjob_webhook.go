@@ -48,6 +48,7 @@ func SetupChangeTriggeredJobWebhookWithManager(mgr ctrl.Manager) error {
 		WithDefaulter(&ChangeTriggeredJobCustomDefaulter{
 			DefaultCooldown:        DefaultValues.DefaultCooldown,
 			DefaultCondition:       DefaultValues.DefaultCondition,
+			DefaultHistory:         DefaultValues.DefaultHistory,
 			ChangedAtAnnotationKey: DefaultValues.ChangedAtAnnotationKey,
 		}).
 		Complete()
@@ -63,12 +64,14 @@ func SetupChangeTriggeredJobWebhookWithManager(mgr ctrl.Manager) error {
 type ChangeTriggeredJobCustomDefaulter struct {
 	DefaultCooldown        time.Duration
 	DefaultCondition       triggersv1alpha.TriggerCondition
+	DefaultHistory         int32
 	ChangedAtAnnotationKey string
 }
 
 var DefaultValues = ChangeTriggeredJobCustomDefaulter{
 	DefaultCooldown:        60 * time.Second,
 	DefaultCondition:       triggersv1alpha.TriggerConditionAny,
+	DefaultHistory:         5,
 	ChangedAtAnnotationKey: "changetriggeredjobs.triggers.changejob.dev/changed-at",
 }
 
@@ -91,6 +94,11 @@ func (d *ChangeTriggeredJobCustomDefaulter) Default(ctx context.Context, obj run
 	// Optional: default trigger condition if unset
 	if changetriggeredjob.Spec.Condition == "" {
 		changetriggeredjob.Spec.Condition = DefaultValues.DefaultCondition
+	}
+
+	// Optional: default history if unset
+	if changetriggeredjob.Spec.History == 0 {
+		changetriggeredjob.Spec.History = DefaultValues.DefaultHistory
 	}
 
 	if changetriggeredjob.Annotations == nil {
