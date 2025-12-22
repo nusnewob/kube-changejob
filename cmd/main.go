@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -36,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
+	"github.com/nusnewob/kube-changejob/internal/config"
 	"github.com/nusnewob/kube-changejob/internal/controller"
 	webhookv1alpha "github.com/nusnewob/kube-changejob/internal/webhook/v1alpha"
 	// +kubebuilder:scaffold:imports
@@ -63,6 +65,8 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+	cfg := config.DefaultControllerConfig
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -83,6 +87,18 @@ func main() {
 	opts := zap.Options{
 		Development: true,
 	}
+
+	// Environment variable override
+	if v := os.Getenv("POLL_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			cfg.PollInterval = d
+		}
+	}
+
+	// Command-line flag (highest priority)
+	flag.DurationVar(&cfg.PollInterval, "poll-interval", cfg.PollInterval,
+		"Polling interval for ChangeTriggeredJob controller")
+
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
@@ -182,6 +198,8 @@ func main() {
 	if err := (&controller.ChangeTriggeredJobReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		Config: cfg,
+		Log:    ctrl.Log.WithName("controllers").WithName("ChangeTriggeredJob"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ChangeTriggeredJob")
 		os.Exit(1)

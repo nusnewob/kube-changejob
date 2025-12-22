@@ -27,17 +27,18 @@ import (
 
 	"github.com/go-logr/logr"
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
+	"github.com/nusnewob/kube-changejob/internal/config"
 )
 
 // ChangeTriggeredJobReconciler reconciles a ChangeTriggeredJob object
 type ChangeTriggeredJobReconciler struct {
 	client.Client
-	Log    logr.Logger
 	Scheme *runtime.Scheme
+	Config config.ControllerConfig
+	Log    logr.Logger
 }
 
 const (
-	PollInterval = 60 * time.Second
 	DefaultLabel = "changejob.dev/owner"
 )
 
@@ -58,28 +59,28 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 	var changeJob triggersv1alpha.ChangeTriggeredJob
 	if err := r.Get(ctx, req.NamespacedName, &changeJob); err != nil {
 		log.Error(err, "unable to fetch ChangeTriggeredJob")
-		return ctrl.Result{RequeueAfter: PollInterval}, client.IgnoreNotFound(err)
+		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, client.IgnoreNotFound(err)
 	}
 
 	changed, updatedStatuses, err := r.pollResources(ctx, &changeJob)
 	if err != nil {
 		log.Error(err, "unable to poll resources")
-		return ctrl.Result{RequeueAfter: PollInterval}, err
+		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 	}
 
 	// Initialize resource hashes on first run (no job triggered)
 	if changeJob.Status.ResourceHashes == nil {
 		changeJob.Status.ResourceHashes = updatedStatuses
 		if err := r.Status().Update(ctx, &changeJob); err != nil {
-			return ctrl.Result{RequeueAfter: PollInterval}, err
+			return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 		}
-		return ctrl.Result{RequeueAfter: PollInterval}, nil
+		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, nil
 	}
 
 	// Update LastJobStatus status
 	histories, err := r.listOwnedJobs(ctx, &changeJob)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: PollInterval}, err
+		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 	}
 	if len(histories) != 0 {
 		if histories[0].Status.Failed != 0 {
@@ -90,7 +91,7 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateSucceeded
 		}
 		if err := r.Status().Update(ctx, &changeJob); err != nil {
-			return ctrl.Result{RequeueAfter: PollInterval}, err
+			return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 		}
 	}
 
@@ -100,14 +101,14 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 		for _, history := range histories[*changeJob.Spec.History:] {
 			if err := r.Delete(ctx, &history); err != nil {
 				log.Error(err, "Failed to delete old job", "job", history.Name)
-				return ctrl.Result{RequeueAfter: PollInterval}, err
+				return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 			}
 			log.Info("Deleted old job", "job", history.Name)
 		}
 	}
 
 	if !changed {
-		return ctrl.Result{RequeueAfter: PollInterval}, nil
+		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, nil
 	}
 
 	// Check if we should trigger (first time or after cooldown)
@@ -117,16 +118,16 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 		log.Info("Creating Job")
 		job, err := r.triggerJob(ctx, &changeJob)
 		if err != nil {
-			return ctrl.Result{RequeueAfter: PollInterval}, err
+			return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 		}
 
 		if err := r.updateStatus(ctx, &changeJob, job, updatedStatuses); err != nil {
-			return ctrl.Result{RequeueAfter: PollInterval}, err
+			return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 		}
 	}
 
 	// Always requeue to keep polling
-	return ctrl.Result{RequeueAfter: PollInterval}, nil
+	return ctrl.Result{RequeueAfter: r.Config.PollInterval}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
