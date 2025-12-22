@@ -42,18 +42,18 @@ type ChangeTriggeredJobSpec struct {
 	// Trigger condition, job triggers when All or Any watched resource changes
 	// +optional
 	// +default:value="Any"
-	Condition TriggerCondition `json:"condition"`
+	Condition *TriggerCondition `json:"condition"`
 
 	// Optional: cooldown period between triggers
 	// +optional
 	// +default:value="60s"
-	Cooldown metav1.Duration `json:"cooldown,omitempty"`
+	Cooldown *metav1.Duration `json:"cooldown,omitempty"`
 
 	// Optional: max job history to keep
 	// +optional
 	// +default:value=5
 	// +kubebuilder:validation:Minimum=1
-	History int32 `json:"history,omitempty"`
+	History *int32 `json:"history,omitempty"`
 }
 
 // Watched Resource object

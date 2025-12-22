@@ -93,9 +93,9 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Delete job history > changeJob.Spec.History
-	if len(histories) > int(changeJob.Spec.History) {
-		log.Info("Cleaning up old jobs", "total", len(histories), "limit", changeJob.Spec.History, "toDelete", len(histories)-int(changeJob.Spec.History))
-		for _, history := range histories[changeJob.Spec.History:] {
+	if len(histories) > int(*changeJob.Spec.History) {
+		log.Info("Cleaning up old jobs", "total", len(histories), "limit", *changeJob.Spec.History, "toDelete", len(histories)-int(*changeJob.Spec.History))
+		for _, history := range histories[*changeJob.Spec.History:] {
 			if err := r.Delete(ctx, &history); err != nil {
 				log.Error(err, "Failed to delete old job", "job", history.Name)
 				return ctrl.Result{RequeueAfter: PollInterval}, err

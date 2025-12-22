@@ -87,18 +87,18 @@ func (d *ChangeTriggeredJobCustomDefaulter) Default(ctx context.Context, obj run
 	changetriggeredjoblog.Info("Defaulting for ChangeTriggeredJob", "name", changetriggeredjob.GetName())
 
 	// Optional: default cooldown if unset
-	if changetriggeredjob.Spec.Cooldown.Duration == 0 {
-		changetriggeredjob.Spec.Cooldown = metav1.Duration{Duration: DefaultValues.DefaultCooldown}
+	if changetriggeredjob.Spec.Cooldown == nil {
+		changetriggeredjob.Spec.Cooldown = &metav1.Duration{Duration: DefaultValues.DefaultCooldown}
 	}
 
 	// Optional: default trigger condition if unset
-	if changetriggeredjob.Spec.Condition == "" {
-		changetriggeredjob.Spec.Condition = DefaultValues.DefaultCondition
+	if changetriggeredjob.Spec.Condition == nil {
+		changetriggeredjob.Spec.Condition = &DefaultValues.DefaultCondition
 	}
 
 	// Optional: default history if unset
-	if changetriggeredjob.Spec.History == 0 {
-		changetriggeredjob.Spec.History = DefaultValues.DefaultHistory
+	if changetriggeredjob.Spec.History == nil {
+		changetriggeredjob.Spec.History = &DefaultValues.DefaultHistory
 	}
 
 	if changetriggeredjob.Annotations == nil {
@@ -145,6 +145,29 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateCreate(ctx context.Context, 
 				err.Error(),
 			)
 		}
+	}
+
+	validCondition := map[triggersv1alpha.TriggerCondition]struct{}{
+		triggersv1alpha.TriggerConditionAll: {},
+		triggersv1alpha.TriggerConditionAny: {},
+	}
+
+	if changetriggeredjob.Spec.Condition != nil {
+		if _, ok := validCondition[*changetriggeredjob.Spec.Condition]; !ok {
+			return nil, field.Invalid(
+				field.NewPath("spec").Child("condition"),
+				*changetriggeredjob.Spec.Condition,
+				"must be 'All' or 'Any'",
+			)
+		}
+	}
+
+	if changetriggeredjob.Spec.History != nil && *changetriggeredjob.Spec.History < 1 {
+		return nil, field.Invalid(
+			field.NewPath("spec").Child("history"),
+			*changetriggeredjob.Spec.History,
+			"must be >= 1",
+		)
 	}
 
 	return nil, nil

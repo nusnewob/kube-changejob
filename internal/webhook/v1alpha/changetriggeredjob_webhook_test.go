@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/restmapper"
+	"k8s.io/utils/ptr"
 
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
 	// TODO (user): Add any additional imports if needed
@@ -66,7 +67,6 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 	Context("When creating ChangeTriggeredJob under Defaulting Webhook", func() {
 		It("Should apply default cooldown when not specified", func() {
 			By("Creating a ChangeTriggeredJob without cooldown")
-			obj.Spec.Cooldown = metav1.Duration{Duration: 0}
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
@@ -85,7 +85,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 
 		It("Should apply default condition when not specified", func() {
 			By("Creating a ChangeTriggeredJob without condition")
-			obj.Spec.Condition = ""
+			obj.Spec.Condition = nil
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
@@ -99,7 +99,23 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Verifying default condition is applied")
-			Expect(obj.Spec.Condition).To(Equal(DefaultValues.DefaultCondition))
+			Expect(obj.Spec.Condition).To(HaveValue(Equal(DefaultValues.DefaultCondition)))
+		})
+
+		It("Should deny creation when condition is not 'All' or 'Any'", func() {
+			By("Creating a ChangeTriggeredJob without condition")
+			obj.Spec.Condition = ptr.To(triggersv1alpha.TriggerCondition("Invalid"))
+			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+					Name:       "test-cm",
+				},
+			}
+
+			By("Calling ValidateCreate")
+			_, err := validator.ValidateCreate(ctx, obj)
+			Expect(err).To(HaveOccurred())
 		})
 
 		It("Should add changed-at annotation", func() {
@@ -125,8 +141,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 		It("Should not override existing cooldown and condition", func() {
 			By("Creating a ChangeTriggeredJob with custom values")
 			customCooldown := 120 * time.Second
-			obj.Spec.Cooldown = metav1.Duration{Duration: customCooldown}
-			obj.Spec.Condition = triggersv1alpha.TriggerConditionAll
+			obj.Spec.Cooldown = &metav1.Duration{Duration: customCooldown}
+			obj.Spec.Condition = ptr.To(triggersv1alpha.TriggerConditionAll)
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
@@ -141,7 +157,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 
 			By("Verifying custom values are preserved")
 			Expect(obj.Spec.Cooldown.Duration).To(Equal(customCooldown))
-			Expect(obj.Spec.Condition).To(Equal(triggersv1alpha.TriggerConditionAll))
+			Expect(obj.Spec.Condition).To(HaveValue(Equal(triggersv1alpha.TriggerConditionAll)))
 		})
 	})
 
@@ -269,7 +285,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 
 		It("Should deny creation if history is less than 1", func() {
 			By("Creating a ChangeTriggeredJob with history = 0")
-			obj.Spec.History = 0
+			obj.Spec.History = ptr.To(int32(0))
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
@@ -283,12 +299,12 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			_, err := validator.ValidateCreate(ctx, obj)
 
 			By("Expecting no validation error")
-			Expect(err).NotTo(HaveOccurred())
+			Expect(err).To(HaveOccurred())
 		})
 
 		It("Should admit creation if history is valid", func() {
 			By("Creating a ChangeTriggeredJob with history = 3")
-			obj.Spec.History = 3
+			obj.Spec.History = ptr.To(int32(3))
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",

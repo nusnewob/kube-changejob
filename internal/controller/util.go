@@ -168,7 +168,7 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 	}
 
 	if changeCount > 0 {
-		switch changeJob.Spec.Condition {
+		switch *changeJob.Spec.Condition {
 		case triggersv1alpha.TriggerConditionAny:
 			changed = true
 		case triggersv1alpha.TriggerConditionAll:
