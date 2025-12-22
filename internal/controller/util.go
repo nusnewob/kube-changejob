@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -46,8 +47,6 @@ type Poller struct {
 
 // Trigger Job
 func (r *ChangeTriggeredJobReconciler) triggerJob(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) (*batchv1.Job, error) {
-	log := r.Log.WithValues("ChangeTriggeredJob", &changeJob.Name)
-
 	// Generate unique job name using GenerateName to stay within K8s 63 char label limit
 	// The job controller will add a unique suffix
 	var labels map[string]string
@@ -76,6 +75,7 @@ func (r *ChangeTriggeredJobReconciler) triggerJob(ctx context.Context, changeJob
 	}
 
 	log.Info("Job created", "job", job.Name)
+	log.V(1).Info("Job created", "job", job)
 	return job, nil
 }
 
@@ -95,6 +95,7 @@ func (p *Poller) Poll(ctx context.Context, ref triggersv1alpha.ResourceReference
 	if err := p.Client.Get(ctx, key, obj); err != nil {
 		return triggersv1alpha.ResourceReferenceStatus{}, err
 	}
+	log.V(1).Info("Resource fetched", "resource", obj)
 
 	hashes := make([]triggersv1alpha.ResourceFieldHash, 0, len(ref.Fields))
 	extracted := make(map[string]any)
@@ -162,20 +163,25 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 		last, found := existing[key]
 		if !found || !cmp.Equal(last, result) {
 			changeCount++
+			log.V(1).Info("Resource status changed", "PreviousState", last, "NewState", result)
 		}
 
 		updated = append(updated, result)
 	}
 
 	if changeCount > 0 {
+		log.V(1).Info(fmt.Sprintf("%d of %d resources changed", changeCount, len(changeJob.Spec.Resources)))
 		switch *changeJob.Spec.Condition {
 		case triggersv1alpha.TriggerConditionAny:
 			changed = true
+			log.V(1).Info("Trigger condition satisfied")
 		case triggersv1alpha.TriggerConditionAll:
 			if changeCount < len(changeJob.Spec.Resources) {
 				changed = false
+				log.V(1).Info("Trigger condition not satisfied")
 			} else {
 				changed = true
+				log.V(1).Info("Trigger condition satisfied")
 			}
 		}
 	}
@@ -185,15 +191,12 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 
 // Update Status
 func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob, job *batchv1.Job, status []triggersv1alpha.ResourceReferenceStatus) error {
-	log := r.Log.WithValues("ChangeTriggeredJob", &changeJob.Name)
-
 	changeJob.Status.LastJobName = job.Name
 	// Use current time if StartTime is not set yet
 	if job.Status.StartTime != nil {
 		changeJob.Status.LastTriggeredTime = job.Status.StartTime
 	} else {
-		now := metav1.Now()
-		changeJob.Status.LastTriggeredTime = &now
+		changeJob.Status.LastTriggeredTime = ptr.To(metav1.Now())
 	}
 
 	changeJob.Status.ResourceHashes = status

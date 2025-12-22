@@ -37,7 +37,7 @@ import (
 
 // nolint:unused
 // log is for logging in this package.
-var changetriggeredjoblog = logf.Log.WithName("changetriggeredjob-resource")
+var log = logf.Log.WithName("ChangeTriggeredJob-Webhook")
 
 // SetupChangeTriggeredJobWebhookWithManager registers the webhook for ChangeTriggeredJob in the manager.
 func SetupChangeTriggeredJobWebhookWithManager(mgr ctrl.Manager) error {
@@ -84,7 +84,7 @@ func (d *ChangeTriggeredJobCustomDefaulter) Default(ctx context.Context, obj run
 	if !ok {
 		return fmt.Errorf("expected an ChangeTriggeredJob object but got %T", obj)
 	}
-	changetriggeredjoblog.Info("Defaulting for ChangeTriggeredJob", "name", changetriggeredjob.GetName())
+	log.Info("Defaulting for ChangeTriggeredJob", "name", changetriggeredjob.GetName())
 
 	// Optional: default cooldown if unset
 	if changetriggeredjob.Spec.Cooldown == nil {
@@ -130,10 +130,14 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateCreate(ctx context.Context, 
 	if !ok {
 		return nil, fmt.Errorf("expected a ChangeTriggeredJob object but got %T", obj)
 	}
-	changetriggeredjoblog.Info("Validation for ChangeTriggeredJob upon creation", "name", changetriggeredjob.GetName())
+	log.Info("Validation for ChangeTriggeredJob upon creation", "name", changetriggeredjob.GetName())
 
 	if len(changetriggeredjob.Spec.Resources) == 0 {
-		return nil, fmt.Errorf("at least one resource must be specified")
+		return nil, field.Invalid(
+			field.NewPath("spec").Child("resources"),
+			changetriggeredjob.Spec.Resources,
+			"at least one resource must be specified",
+		)
 	}
 
 	for i, ref := range changetriggeredjob.Spec.Resources {
@@ -147,12 +151,11 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateCreate(ctx context.Context, 
 		}
 	}
 
-	validCondition := map[triggersv1alpha.TriggerCondition]struct{}{
-		triggersv1alpha.TriggerConditionAll: {},
-		triggersv1alpha.TriggerConditionAny: {},
-	}
-
 	if changetriggeredjob.Spec.Condition != nil {
+		validCondition := map[triggersv1alpha.TriggerCondition]struct{}{
+			triggersv1alpha.TriggerConditionAll: {},
+			triggersv1alpha.TriggerConditionAny: {},
+		}
 		if _, ok := validCondition[*changetriggeredjob.Spec.Condition]; !ok {
 			return nil, field.Invalid(
 				field.NewPath("spec").Child("condition"),
@@ -184,7 +187,7 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateDelete(ctx context.Context, 
 	if !ok {
 		return nil, fmt.Errorf("expected a ChangeTriggeredJob object but got %T", obj)
 	}
-	changetriggeredjoblog.Info("Validation for ChangeTriggeredJob upon deletion", "name", changetriggeredjob.GetName())
+	log.Info("Validation for ChangeTriggeredJob upon deletion", "name", changetriggeredjob.GetName())
 
 	return nil, nil
 }

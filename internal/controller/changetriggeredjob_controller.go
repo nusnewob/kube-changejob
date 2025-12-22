@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
@@ -40,6 +41,8 @@ const (
 	DefaultLabel = "changejob.dev/owner"
 )
 
+var log = logf.Log.WithName("ChangeTriggeredJob")
+
 // +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs/finalizers,verbs=update
@@ -52,8 +55,6 @@ const (
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.22.4/pkg/reconcile
 func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("ChangeTriggeredJob", req.NamespacedName)
-
 	var changeJob triggersv1alpha.ChangeTriggeredJob
 	if err := r.Get(ctx, req.NamespacedName, &changeJob); err != nil {
 		log.Error(err, "unable to fetch ChangeTriggeredJob")
@@ -62,6 +63,7 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	changed, updatedStatuses, err := r.pollResources(ctx, &changeJob)
 	if err != nil {
+		log.Error(err, "unable to poll resources")
 		return ctrl.Result{RequeueAfter: PollInterval}, err
 	}
 
