@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
+	"github.com/nusnewob/kube-changejob/internal/config"
 )
 
 var _ = Describe("ChangeTriggeredJob Controller", func() {
@@ -131,6 +132,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
 				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
@@ -243,6 +245,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
 				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
@@ -370,6 +373,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
 				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
@@ -1299,6 +1303,111 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			By("Verifying the oldest jobs were deleted")
 			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
 			Expect(jobList.Items).To(HaveLen(2)) // TODO: needs fixing, should be 1
+		})
+
+		It("Should use configured poll interval for reconciliation", func() {
+			By("Creating a ChangeTriggeredJob")
+			ctj := &triggersv1alpha.ChangeTriggeredJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      ctjName,
+					Namespace: ctjNamespace,
+				},
+				Spec: triggersv1alpha.ChangeTriggeredJobSpec{
+					Resources: []triggersv1alpha.ResourceReference{
+						{
+							APIVersion: "v1",
+							Kind:       "ConfigMap",
+							Name:       cmName,
+							Namespace:  ctjNamespace,
+							Fields:     []string{"data.config"},
+						},
+					},
+					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
+					Cooldown:  &metav1.Duration{Duration: 1 * time.Second},
+					History:   ptr.To[int32](5),
+					JobTemplate: batchv1.JobTemplateSpec{
+						Spec: batchv1.JobSpec{
+							Template: corev1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									RestartPolicy: corev1.RestartPolicyNever,
+									Containers: []corev1.Container{
+										{
+											Name:  "test-container",
+											Image: "busybox",
+											Command: []string{
+												"echo",
+												"hello world",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ctj)).Should(Succeed())
+
+			By("Creating a ConfigMap")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: ctjNamespace,
+				},
+				Data: map[string]string{
+					"config": "initial",
+				},
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			By("Testing with default poll interval")
+			defaultConfig := config.DefaultControllerConfig
+			controllerReconciler := &ChangeTriggeredJobReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: defaultConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
+			}
+
+			result, err := controllerReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(defaultConfig.PollInterval))
+
+			By("Testing with custom poll interval")
+			customConfig := config.ControllerConfig{
+				PollInterval: 30 * time.Second,
+			}
+			customReconciler := &ChangeTriggeredJobReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: customConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
+			}
+
+			result, err = customReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(30 * time.Second))
+
+			By("Testing with another custom poll interval")
+			anotherConfig := config.ControllerConfig{
+				PollInterval: 2 * time.Minute,
+			}
+			anotherReconciler := &ChangeTriggeredJobReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: anotherConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
+			}
+
+			result, err = anotherReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(2 * time.Minute))
 		})
 	})
 })
