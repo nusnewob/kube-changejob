@@ -1426,6 +1426,110 @@ var _ = Describe("E2E Tests", Ordered, func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(output).NotTo(BeEmpty(), "resourceHashes should be initialized")
 			})
+
+			It("should clean up old jobs when history limit is exceeded", func() {
+				By("creating a ConfigMap")
+				configMapJSON := fmt.Sprintf(`{
+				  "apiVersion": "v1",
+				  "kind": "ConfigMap",
+				  "metadata": {
+				    "name": "history-test-configmap",
+				    "namespace": "%s"
+				  },
+				  "data": {
+				    "key1": "initial"
+				  }
+				}`, testNamespace)
+				cmd := exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(configMapJSON))
+				_, err := utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("creating a ChangeTriggeredJob with history limit of 1")
+				changeJobJSON := fmt.Sprintf(`{
+				  "apiVersion": "triggers.changejob.dev/v1alpha",
+				  "kind": "ChangeTriggeredJob",
+				  "metadata": {
+				    "name": "history-limit-job",
+				    "namespace": "%s"
+				  },
+				  "spec": {
+				    "cooldown": "5s",
+				    "condition": "Any",
+				    "history": 1,
+				    "resources": [
+				      {
+				        "apiVersion": "v1",
+				        "kind": "ConfigMap",
+				        "name": "history-test-configmap",
+				        "namespace": "%s"
+				      }
+				    ],
+				    "jobTemplate": {
+				      "spec": {
+				        "template": {
+				          "spec": {
+				            "containers": [
+				              {
+				                "name": "test",
+				                "image": "busybox",
+				                "command": ["echo", "job triggered"]
+				              }
+				            ],
+				            "restartPolicy": "Never"
+				          }
+				        }
+				      }
+				    }
+				  }
+				}`, testNamespace, testNamespace)
+				cmd = exec.Command("kubectl", "apply", "-f", "-")
+				cmd.Stdin = bytes.NewReader([]byte(changeJobJSON))
+				_, err = utils.Run(cmd)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("waiting for initial reconciliation")
+				time.Sleep(10 * time.Second)
+
+				By("triggering multiple changes to create 2 jobs")
+				for i := 1; i <= 2; i++ {
+					updateJSON := fmt.Sprintf(`{
+					  "apiVersion": "v1",
+					  "kind": "ConfigMap",
+					  "metadata": {
+					    "name": "history-test-configmap",
+					    "namespace": "%s"
+					  },
+					  "data": {
+					    "key1": "value%d"
+					  }
+					}`, testNamespace, i)
+					cmd = exec.Command("kubectl", "apply", "-f", "-")
+					cmd.Stdin = bytes.NewReader([]byte(updateJSON))
+					_, err = utils.Run(cmd)
+					Expect(err).NotTo(HaveOccurred())
+
+					time.Sleep(7 * time.Second)
+				}
+
+				By("verifying only 1 jobs remain (history limit)")
+				Eventually(func(g Gomega) {
+					cmd := exec.Command("kubectl", "get", "jobs", "-n", testNamespace, "-l", "changejob.dev/owner=history-limit-job", "-o", "json")
+					output, err := utils.Run(cmd)
+					g.Expect(err).NotTo(HaveOccurred())
+
+					var jobList struct {
+						Items []struct {
+							Metadata struct {
+								Name string `json:"name"`
+							} `json:"metadata"`
+						} `json:"items"`
+					}
+					err = json.Unmarshal([]byte(output), &jobList)
+					g.Expect(err).NotTo(HaveOccurred())
+					g.Expect(len(jobList.Items)).To(Equal(1), "Expected exactly 2 jobs to remain due to history limit")
+				}, 60*time.Second, 5*time.Second).Should(Succeed())
+			})
 		})
 	})
 })

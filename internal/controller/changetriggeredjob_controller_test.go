@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	batchv1 "k8s.io/api/batch/v1"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
 )
@@ -128,6 +130,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -239,6 +242,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			By("Initial reconciliation establishes baseline")
@@ -365,6 +369,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			By("Initial reconciliation establishes baseline")
@@ -507,6 +512,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			By("Initial reconciliation establishes baseline")
@@ -593,6 +599,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			By("Reconciling with non-existent resource")
@@ -1181,6 +1188,116 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 				}
 				return len(jobList.Items)
 			}, time.Second*5, time.Millisecond*500).Should(Equal(1))
+		})
+
+		It("Should clean up old jobs when history limit is exceeded", func() {
+			By("Creating a ChangeTriggeredJob with history limit of 1")
+			ctj := &triggersv1alpha.ChangeTriggeredJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      ctjName,
+					Namespace: ctjNamespace,
+				},
+				Spec: triggersv1alpha.ChangeTriggeredJobSpec{
+					Resources: []triggersv1alpha.ResourceReference{
+						{
+							APIVersion: "v1",
+							Kind:       "ConfigMap",
+							Name:       cmName,
+							Namespace:  ctjNamespace,
+							Fields:     []string{"data.config"},
+						},
+					},
+					Condition: triggersv1alpha.TriggerConditionAny,
+					Cooldown:  metav1.Duration{Duration: 1 * time.Second},
+					History:   1,
+					JobTemplate: batchv1.JobTemplateSpec{
+						Spec: batchv1.JobSpec{
+							Template: corev1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									RestartPolicy: corev1.RestartPolicyNever,
+									Containers: []corev1.Container{
+										{
+											Name:  "test-container",
+											Image: "busybox",
+											Command: []string{
+												"echo",
+												"hello world",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ctj)).Should(Succeed())
+
+			By("Creating a ConfigMap")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: ctjNamespace,
+				},
+				Data: map[string]string{
+					"config": "initial-value",
+				},
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			controllerReconciler := &ChangeTriggeredJobReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			By("Initial reconciliation establishes baseline")
+			_, err := controllerReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Creating 2 jobs by triggering changes")
+			for i := 1; i <= 2; i++ {
+				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
+				cm.Data["config"] = fmt.Sprintf("value-%d", i)
+				Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
+
+				_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
+					NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				time.Sleep(1200 * time.Millisecond)
+			}
+
+			By("Verifying 2 jobs were created before cleanup")
+			jobList := &batchv1.JobList{}
+			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
+			fmt.Printf("Jobs before cleanup: %d\n", len(jobList.Items))
+			for _, job := range jobList.Items {
+				fmt.Printf("  - Job: %s, Created: %v\n", job.Name, job.CreationTimestamp)
+			}
+			Expect(jobList.Items).To(HaveLen(2))
+
+			By("Triggering additional reconciliation to cleanup old jobs")
+			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying that only 1 jobs remain (history limit)")
+			Eventually(func() int {
+				jobList := &batchv1.JobList{}
+				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName}); err != nil {
+					return -1
+				}
+				fmt.Printf("Jobs count in Eventually: %d\n", len(jobList.Items))
+				return len(jobList.Items)
+			}, time.Second*70, time.Millisecond*1000).Should(Equal(2))
+
+			By("Verifying the oldest jobs were deleted")
+			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
+			Expect(jobList.Items).To(HaveLen(1))
 		})
 	})
 })

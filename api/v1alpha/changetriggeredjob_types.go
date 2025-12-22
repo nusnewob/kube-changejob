@@ -52,6 +52,7 @@ type ChangeTriggeredJobSpec struct {
 	// Optional: max job history to keep
 	// +optional
 	// +default:value=5
+	// +kubebuilder:validation:Minimum=1
 	History int32 `json:"history,omitempty"`
 }
 
