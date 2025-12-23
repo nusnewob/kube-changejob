@@ -169,13 +169,13 @@ func TestUncommentCodeBasic(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to create temp file: %v", err)
 			}
-			defer os.Remove(tmpFile.Name())
+			defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 			// Write content
 			if _, err := tmpFile.WriteString(tt.content); err != nil {
 				t.Fatalf("Failed to write to temp file: %v", err)
 			}
-			tmpFile.Close()
+			_ = tmpFile.Close()
 
 			// Run UncommentCode
 			err = UncommentCode(tmpFile.Name(), tt.target, tt.prefix)
@@ -217,13 +217,13 @@ func TestUncommentCodeEdgeCases(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create temp file: %v", err)
 		}
-		defer os.Remove(tmpFile.Name())
+		defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 		content := "line1\nline2"
 		if _, err := tmpFile.WriteString(content); err != nil {
 			t.Fatalf("Failed to write: %v", err)
 		}
-		tmpFile.Close()
+		_ = tmpFile.Close()
 
 		// Empty target will not be found and should return error
 		err = UncommentCode(tmpFile.Name(), "nonexistent", "# ")
@@ -237,13 +237,13 @@ func TestUncommentCodeEdgeCases(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create temp file: %v", err)
 		}
-		defer os.Remove(tmpFile.Name())
+		defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 		content := "line1\n# commented"
 		if _, err := tmpFile.WriteString(content); err != nil {
 			t.Fatalf("Failed to write: %v", err)
 		}
-		tmpFile.Close()
+		_ = tmpFile.Close()
 
 		err = UncommentCode(tmpFile.Name(), "# commented", "# ")
 		if err != nil {
@@ -348,7 +348,8 @@ func TestCertManagerURLTemplate(t *testing.T) {
 	expectedURL := "https://github.com/cert-manager/cert-manager/releases/download/v1.19.1/cert-manager.yaml"
 
 	// Simulate URL construction from template
-	actualURL := "https://github.com/cert-manager/cert-manager/releases/download/" + certmanagerVersion + "/cert-manager.yaml"
+	actualURL := "https://github.com/cert-manager/cert-manager/releases/download/" +
+		certmanagerVersion + "/cert-manager.yaml"
 
 	if actualURL != expectedURL {
 		t.Errorf("Expected URL %s, got %s", expectedURL, actualURL)
@@ -367,7 +368,7 @@ func TestGetProjectDirStripsE2EPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create test/e2e subdirectory
 	e2eDir := filepath.Join(tmpDir, "test", "e2e")
@@ -379,7 +380,7 @@ func TestGetProjectDirStripsE2EPath(t *testing.T) {
 	if err := os.Chdir(e2eDir); err != nil {
 		t.Fatalf("Failed to change to e2e dir: %v", err)
 	}
-	defer os.Chdir(originalWd)
+	defer func() { _ = os.Chdir(originalWd) }()
 
 	// Get project dir
 	projectDir, err := GetProjectDir()
@@ -409,12 +410,12 @@ func TestUncommentCodePreservesContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	if _, err := tmpFile.WriteString(content); err != nil {
 		t.Fatalf("Failed to write: %v", err)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	err = UncommentCode(tmpFile.Name(), "# commented", "# ")
 	if err != nil {

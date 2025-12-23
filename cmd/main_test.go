@@ -8,6 +8,10 @@ import (
 	"github.com/nusnewob/kube-changejob/internal/config"
 )
 
+const (
+	jsonFormat = "json"
+)
+
 func TestDefaultPollInterval(t *testing.T) {
 	cfg := config.DefaultControllerConfig
 	expected := 60 * time.Second
@@ -280,7 +284,7 @@ func TestLogFormatValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Simulate format validation from main.go
-			useJSON := tt.format == "json"
+			useJSON := tt.format == jsonFormat
 			if useJSON != tt.useJSON {
 				t.Errorf("Expected useJSON to be %v for format %s, got %v", tt.useJSON, tt.format, useJSON)
 			}
@@ -403,7 +407,7 @@ func TestLoggingConfiguration(t *testing.T) {
 			name:        "production config",
 			debug:       false,
 			logLevel:    "info",
-			logFormat:   "json",
+			logFormat:   jsonFormat,
 			logTime:     "rfc3339",
 			expectDebug: false,
 			expectJSON:  true,
@@ -421,7 +425,7 @@ func TestLoggingConfiguration(t *testing.T) {
 			name:        "mixed config",
 			debug:       false,
 			logLevel:    "warn",
-			logFormat:   "json",
+			logFormat:   jsonFormat,
 			logTime:     "epoch",
 			expectDebug: false,
 			expectJSON:  true,
@@ -432,7 +436,7 @@ func TestLoggingConfiguration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Simulate configuration from main.go
 			isDebug := tt.debug
-			isJSON := tt.logFormat == "json"
+			isJSON := tt.logFormat == jsonFormat
 
 			if isDebug != tt.expectDebug {
 				t.Errorf("Expected debug mode to be %v, got %v", tt.expectDebug, isDebug)
@@ -516,55 +520,52 @@ func TestHTTP2Configuration(t *testing.T) {
 
 func TestTLSCertificateConfiguration(t *testing.T) {
 	tests := []struct {
-		name     string
-		certPath string
-		certName string
-		certKey  string
-		valid    bool
+		name        string
+		certPath    string
+		certName    string
+		certKey     string
+		expectValid bool
 	}{
 		{
-			name:     "valid webhook certificate",
-			certPath: "/etc/certs",
-			certName: "tls.crt",
-			certKey:  "tls.key",
-			valid:    true,
+			name:        "valid webhook certificate",
+			certPath:    "/etc/certs",
+			certName:    "tls.crt",
+			certKey:     "tls.key",
+			expectValid: true,
 		},
 		{
-			name:     "valid metrics certificate",
-			certPath: "/etc/metrics-certs",
-			certName: "server.crt",
-			certKey:  "server.key",
-			valid:    true,
+			name:        "valid metrics certificate",
+			certPath:    "/etc/metrics-certs",
+			certName:    "server.crt",
+			certKey:     "server.key",
+			expectValid: true,
 		},
 		{
-			name:     "default certificate names",
-			certPath: "/certs",
-			certName: "tls.crt",
-			certKey:  "tls.key",
-			valid:    true,
+			name:        "default certificate names",
+			certPath:    "/certs",
+			certName:    "tls.crt",
+			certKey:     "tls.key",
+			expectValid: true,
 		},
 		{
-			name:     "empty path uses auto-generated",
-			certPath: "",
-			certName: "tls.crt",
-			certKey:  "tls.key",
-			valid:    true,
+			name:        "empty path uses auto-generated",
+			certPath:    "",
+			certName:    "tls.crt",
+			certKey:     "tls.key",
+			expectValid: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Validate certificate configuration
-			if tt.certName == "" {
+			if tt.certName == "" && tt.expectValid {
 				t.Error("Certificate name should not be empty")
 			}
-			if tt.certKey == "" {
+			if tt.certKey == "" && tt.expectValid {
 				t.Error("Certificate key should not be empty")
 			}
-			// Empty path is valid (auto-generation)
-			if tt.valid && tt.certPath == "" && (tt.certName != "" && tt.certKey != "") {
-				// Valid case: auto-generated certs
-			}
+			// Empty path is valid (auto-generation) - no additional validation needed
 		})
 	}
 }
