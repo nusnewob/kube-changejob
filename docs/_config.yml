@@ -1,0 +1,109 @@
+# Jekyll configuration for GitHub Pages
+
+# Site settings
+title: kube-changejob
+description: Kubernetes operator that automatically triggers jobs when watched resources change
+baseurl: "/kube-changejob"
+url: "https://nusnewob.github.io"
+
+# Theme settings
+theme: just-the-docs
+color_scheme: light
+
+# Navigation
+nav_enabled: true
+nav_sort: case_insensitive
+
+# Search
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+  tokenizer_separator: /[\s/]+/
+  rel_url: true
+  button: false
+
+# Mermaid diagrams support
+mermaid:
+  version: "9.1.3"
+
+# Footer
+footer_content: "Copyright &copy; 2025 Bowen Sun. Distributed under the Apache License 2.0."
+
+# Back to top link
+back_to_top: true
+back_to_top_text: "Back to top"
+
+# GitHub
+gh_edit_link: true
+gh_edit_link_text: "Edit this page on GitHub"
+gh_edit_repository: "https://github.com/nusnewob/kube-changejob"
+gh_edit_branch: "main"
+gh_edit_view_mode: "edit"
+gh_edit_source: docs
+
+# Aux links for the upper right navigation
+aux_links:
+  "kube-changejob on GitHub":
+    - "//github.com/nusnewob/kube-changejob"
+
+# Makes Aux links open in a new tab
+aux_links_new_tab: true
+
+# Heading anchor links
+heading_anchors: true
+
+# Liquid options
+liquid:
+  error_mode: strict
+  strict_filters: true
+  strict_variables: true
+
+# Plugins
+plugins:
+  - jekyll-seo-tag
+  - jekyll-github-metadata
+  - jekyll-include-cache
+
+# Exclude from processing
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+
+# kramdown settings
+kramdown:
+  syntax_highlighter_opts:
+    block:
+      line_numbers: false
+
+# Compress HTML
+compress_html:
+  clippings: all
+  comments: all
+  endings: all
+  startings: []
+  blanklines: false
+  profile: false
+
+# Collections for custom documentation structure
+collections:
+  docs:
+    permalink: "/:collection/:path/"
+    output: true
+
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+  - scope:
+      path: ""
+      type: "docs"
+    values:
+      layout: "default"
