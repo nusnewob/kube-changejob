@@ -10,6 +10,7 @@ This directory contains the documentation for kube-changejob, published at [http
 - **[api-reference.md](api-reference.md)** - CRD specification and API details ([view](https://nusnewob.github.io/kube-changejob/api-reference))
 - **[configuration.md](configuration.md)** - Controller configuration options ([view](https://nusnewob.github.io/kube-changejob/configuration))
 - **[examples.md](examples.md)** - Real-world usage examples ([view](https://nusnewob.github.io/kube-changejob/examples))
+- **[release.md](release.md)** - Release process and management ([view](https://nusnewob.github.io/kube-changejob/release))
 
 ## Building Docs Locally
 

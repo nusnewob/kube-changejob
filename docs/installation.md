@@ -541,6 +541,7 @@ kubectl auth can-i --list --as=system:serviceaccount:kube-changejob-system:kube-
 - Check the [API Reference](api-reference) for detailed specifications
 - Review [Configuration](configuration) for advanced settings
 - Explore [Examples](examples) for common use cases
+- Learn the [Release Process](release) to create and manage releases
 
 ## Getting Help
 

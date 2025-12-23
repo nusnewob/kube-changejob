@@ -735,3 +735,4 @@ To use ChangeTriggeredJob, you need the following permissions:
 - [Installation Guide](installation) - Installation instructions
 - [Configuration](configuration) - Controller configuration
 - [Examples](examples) - Real-world usage examples
+- [Release Process](release) - How to create and manage releases

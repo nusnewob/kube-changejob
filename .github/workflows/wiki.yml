@@ -34,6 +34,7 @@ jobs:
           cp docs/api-reference.md wiki/API-Reference.md
           cp docs/configuration.md wiki/Configuration.md
           cp docs/examples.md wiki/Examples.md
+          cp docs/release.md wiki/Release-Guide.md
 
           # Process files to convert extension-less links back to .md for wiki
           cd wiki
@@ -45,6 +46,7 @@ jobs:
               sed -i.bak 's|\](api-reference)|\](API-Reference)|g' "$file"
               sed -i.bak 's|\](configuration)|\](Configuration)|g' "$file"
               sed -i.bak 's|\](examples)|\](Examples)|g' "$file"
+              sed -i.bak 's|\](release)|\](Release-Guide)|g' "$file"
 
               # Remove Jekyll front matter
               sed -i.bak '/^---$/,/^---$/d' "$file"
@@ -65,6 +67,7 @@ jobs:
           * [API Reference](API-Reference)
           * [Configuration](Configuration)
           * [Examples](Examples)
+          * [Release Guide](Release-Guide)
 
           ---
 

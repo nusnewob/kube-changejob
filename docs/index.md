@@ -93,6 +93,7 @@ kube-changejob is ideal for:
 - [**API Reference**](api-reference) - CRD specification and API details
 - [**Configuration**](configuration) - Controller configuration options
 - [**Examples**](examples) - Real-world usage examples
+- [**Release Process**](release) - How to create and manage releases
 
 ## How It Works
 

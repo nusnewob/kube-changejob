@@ -1033,6 +1033,7 @@ kubectl auth can-i create changetriggeredjobs
 - Check [Examples](examples) for more use cases
 - Learn about [Configuration](configuration) options
 - Read the [Installation Guide](installation) for deployment options
+- Learn the [Release Process](release) to create and manage releases
 
 ## Getting Help
 

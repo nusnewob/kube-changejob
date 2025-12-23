@@ -875,3 +875,4 @@ kubectl delete changetriggeredjob <name>
 - [API Reference](api-reference) - API specification
 - [Configuration](configuration) - Controller configuration
 - [Installation](installation) - Installation guide
+- [Release Process](release) - How to create and manage releases

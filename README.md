@@ -130,6 +130,7 @@ Comprehensive documentation is available in the [docs/](./docs) directory:
 - [API Reference](./docs/api-reference.md) - CRD specification and API details
 - [Configuration](./docs/configuration.md) - Controller configuration options
 - [Examples](./docs/examples.md) - Real-world usage examples
+- [Release Process](./docs/release.md) - How to create and manage releases
 
 ## How It Works
 

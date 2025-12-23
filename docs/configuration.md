@@ -760,3 +760,4 @@ spec:
 - [User Guide](user-guide) - Usage guide
 - [API Reference](api-reference) - API documentation
 - [Examples](examples) - Example configurations
+- [Release Process](release) - How to create and manage releases
