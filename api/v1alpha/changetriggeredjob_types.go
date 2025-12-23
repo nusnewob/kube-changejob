@@ -168,6 +168,7 @@ const (
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=ctj;ctjs
 
 // ChangeTriggeredJob is the Schema for the changetriggeredjobs API
 type ChangeTriggeredJob struct {
