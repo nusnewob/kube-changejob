@@ -30,8 +30,7 @@ jobs:
         run: |
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/
-          go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash
 
       - name: Run tests
         run: make test
@@ -46,10 +45,10 @@ jobs:
           kustomize build config/default > /tmp/install.yaml
 
           # Validate YAML syntax
-          go install github.com/instrumenta/kubeval@latest || true
-          if command -v kubeval &> /dev/null; then
-            kubeval /tmp/crds.yaml
-            kubeval /tmp/install.yaml
+          go install github.com/yannh/kubeconform/cmd/kubeconform@latest || true
+          if command -v kubeconform &> /dev/null; then
+            kubeconform -summary -output pretty -ignore-missing-schemas /tmp/crds.yaml
+            kubeconform -summary -output pretty -ignore-missing-schemas /tmp/install.yaml
           fi
 
       - name: Validate Helm chart

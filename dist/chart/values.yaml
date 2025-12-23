@@ -12,8 +12,8 @@ manager:
   replicas: 2
 
   image:
-    repository: controller
-    tag: latest
+    repository: ghcr.io/nusnewob/kube-changejob
+    # tag: latest
     pullPolicy: IfNotPresent
 
   # Arguments
