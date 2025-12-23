@@ -1,0 +1,35 @@
+name: Sync docs to wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - docs/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Clone wiki
+        run: |
+          git clone https://github.com/${{ github.repository }}.wiki.git wiki
+
+      - name: Sync docs
+        run: |
+          rsync -av --delete docs/*.md wiki/
+
+      - name: Commit and push
+        run: |
+          cd wiki
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "Sync docs from /docs" || exit 0
+          git push
