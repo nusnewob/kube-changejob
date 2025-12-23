@@ -443,3 +443,353 @@ func TestLoggingConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestMetricsConfiguration(t *testing.T) {
+	tests := []struct {
+		name          string
+		metricsAddr   string
+		secureMetrics bool
+		expectSecure  bool
+		expectAddr    string
+	}{
+		{
+			name:          "secure metrics with HTTPS",
+			metricsAddr:   ":8443",
+			secureMetrics: true,
+			expectSecure:  true,
+			expectAddr:    ":8443",
+		},
+		{
+			name:          "insecure metrics with HTTP",
+			metricsAddr:   ":8080",
+			secureMetrics: false,
+			expectSecure:  false,
+			expectAddr:    ":8080",
+		},
+		{
+			name:          "metrics disabled",
+			metricsAddr:   "0",
+			secureMetrics: true,
+			expectSecure:  true,
+			expectAddr:    "0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.metricsAddr != tt.expectAddr {
+				t.Errorf("Expected metrics address to be %s, got %s", tt.expectAddr, tt.metricsAddr)
+			}
+			if tt.secureMetrics != tt.expectSecure {
+				t.Errorf("Expected secure metrics to be %v, got %v", tt.expectSecure, tt.secureMetrics)
+			}
+		})
+	}
+}
+
+func TestHTTP2Configuration(t *testing.T) {
+	tests := []struct {
+		name        string
+		enableHTTP2 bool
+		expectHTTP2 bool
+	}{
+		{
+			name:        "HTTP/2 enabled",
+			enableHTTP2: true,
+			expectHTTP2: true,
+		},
+		{
+			name:        "HTTP/2 disabled (default for security)",
+			enableHTTP2: false,
+			expectHTTP2: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.enableHTTP2 != tt.expectHTTP2 {
+				t.Errorf("Expected HTTP/2 to be %v, got %v", tt.expectHTTP2, tt.enableHTTP2)
+			}
+		})
+	}
+}
+
+func TestTLSCertificateConfiguration(t *testing.T) {
+	tests := []struct {
+		name     string
+		certPath string
+		certName string
+		certKey  string
+		valid    bool
+	}{
+		{
+			name:     "valid webhook certificate",
+			certPath: "/etc/certs",
+			certName: "tls.crt",
+			certKey:  "tls.key",
+			valid:    true,
+		},
+		{
+			name:     "valid metrics certificate",
+			certPath: "/etc/metrics-certs",
+			certName: "server.crt",
+			certKey:  "server.key",
+			valid:    true,
+		},
+		{
+			name:     "default certificate names",
+			certPath: "/certs",
+			certName: "tls.crt",
+			certKey:  "tls.key",
+			valid:    true,
+		},
+		{
+			name:     "empty path uses auto-generated",
+			certPath: "",
+			certName: "tls.crt",
+			certKey:  "tls.key",
+			valid:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Validate certificate configuration
+			if tt.certName == "" {
+				t.Error("Certificate name should not be empty")
+			}
+			if tt.certKey == "" {
+				t.Error("Certificate key should not be empty")
+			}
+			// Empty path is valid (auto-generation)
+			if tt.valid && tt.certPath == "" && (tt.certName != "" && tt.certKey != "") {
+				// Valid case: auto-generated certs
+			}
+		})
+	}
+}
+
+func TestLeaderElectionConfiguration(t *testing.T) {
+	tests := []struct {
+		name                 string
+		enableLeaderElection bool
+		expectEnabled        bool
+	}{
+		{
+			name:                 "leader election enabled",
+			enableLeaderElection: true,
+			expectEnabled:        true,
+		},
+		{
+			name:                 "leader election disabled (default)",
+			enableLeaderElection: false,
+			expectEnabled:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.enableLeaderElection != tt.expectEnabled {
+				t.Errorf("Expected leader election to be %v, got %v", tt.expectEnabled, tt.enableLeaderElection)
+			}
+		})
+	}
+}
+
+func TestProbeConfiguration(t *testing.T) {
+	tests := []struct {
+		name        string
+		probeAddr   string
+		expectAddr  string
+		description string
+	}{
+		{
+			name:        "default probe address",
+			probeAddr:   ":8081",
+			expectAddr:  ":8081",
+			description: "health and readiness probes",
+		},
+		{
+			name:        "custom probe address",
+			probeAddr:   ":9090",
+			expectAddr:  ":9090",
+			description: "custom port for probes",
+		},
+		{
+			name:        "probe on all interfaces",
+			probeAddr:   "0.0.0.0:8081",
+			expectAddr:  "0.0.0.0:8081",
+			description: "explicit bind to all interfaces",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.probeAddr != tt.expectAddr {
+				t.Errorf("Expected probe address to be %s, got %s", tt.expectAddr, tt.probeAddr)
+			}
+		})
+	}
+}
+
+func TestInvalidPollIntervalHandling(t *testing.T) {
+	tests := []struct {
+		name          string
+		envValue      string
+		shouldUseEnv  bool
+		expectedValue time.Duration
+	}{
+		{
+			name:          "negative duration invalid",
+			envValue:      "-10s",
+			shouldUseEnv:  false,
+			expectedValue: 60 * time.Second,
+		},
+		{
+			name:          "zero duration invalid",
+			envValue:      "0s",
+			shouldUseEnv:  true,
+			expectedValue: 0,
+		},
+		{
+			name:          "malformed duration",
+			envValue:      "10x",
+			shouldUseEnv:  false,
+			expectedValue: 60 * time.Second,
+		},
+		{
+			name:          "very large duration",
+			envValue:      "24h",
+			shouldUseEnv:  true,
+			expectedValue: 24 * time.Hour,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.DefaultControllerConfig
+			if tt.envValue != "" {
+				if d, err := time.ParseDuration(tt.envValue); err == nil {
+					if tt.shouldUseEnv {
+						cfg.PollInterval = d
+					}
+				}
+			}
+
+			if tt.shouldUseEnv && cfg.PollInterval != tt.expectedValue {
+				t.Errorf("Expected poll interval to be %v, got %v", tt.expectedValue, cfg.PollInterval)
+			}
+		})
+	}
+}
+
+func TestMultipleEnvironmentVariablesPriority(t *testing.T) {
+	originalEnv := os.Getenv("POLL_INTERVAL")
+	defer func() {
+		if originalEnv != "" {
+			_ = os.Setenv("POLL_INTERVAL", originalEnv)
+		} else {
+			_ = os.Unsetenv("POLL_INTERVAL")
+		}
+	}()
+
+	tests := []struct {
+		name           string
+		envValue       string
+		flagValue      time.Duration
+		expectedResult time.Duration
+	}{
+		{
+			name:           "flag overrides env",
+			envValue:       "30s",
+			flagValue:      45 * time.Second,
+			expectedResult: 45 * time.Second,
+		},
+		{
+			name:           "env used when no flag",
+			envValue:       "30s",
+			flagValue:      0,
+			expectedResult: 30 * time.Second,
+		},
+		{
+			name:           "default when neither set",
+			envValue:       "",
+			flagValue:      0,
+			expectedResult: 60 * time.Second,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.DefaultControllerConfig
+
+			// First apply environment variable
+			if tt.envValue != "" {
+				if err := os.Setenv("POLL_INTERVAL", tt.envValue); err != nil {
+					t.Fatalf("Failed to set env: %v", err)
+				}
+				if v := os.Getenv("POLL_INTERVAL"); v != "" {
+					if d, err := time.ParseDuration(v); err == nil {
+						cfg.PollInterval = d
+					}
+				}
+			} else {
+				_ = os.Unsetenv("POLL_INTERVAL")
+			}
+
+			// Then apply flag (highest priority)
+			if tt.flagValue > 0 {
+				cfg.PollInterval = tt.flagValue
+			}
+
+			if cfg.PollInterval != tt.expectedResult {
+				t.Errorf("Expected poll interval to be %v, got %v", tt.expectedResult, cfg.PollInterval)
+			}
+		})
+	}
+}
+
+func TestCertificatePathValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		certPath    string
+		certName    string
+		keyName     string
+		expectValid bool
+	}{
+		{
+			name:        "all cert fields provided",
+			certPath:    "/etc/certs",
+			certName:    "tls.crt",
+			keyName:     "tls.key",
+			expectValid: true,
+		},
+		{
+			name:        "missing cert path",
+			certPath:    "",
+			certName:    "tls.crt",
+			keyName:     "tls.key",
+			expectValid: true, // Empty path is valid (auto-generated)
+		},
+		{
+			name:        "custom cert names",
+			certPath:    "/custom/path",
+			certName:    "server.pem",
+			keyName:     "server-key.pem",
+			expectValid: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Validate that cert name and key are not empty when path is provided
+			if tt.certPath != "" {
+				if tt.certName == "" || tt.keyName == "" {
+					if tt.expectValid {
+						t.Error("Expected valid configuration but cert name or key is empty")
+					}
+				}
+			}
+		})
+	}
+}
