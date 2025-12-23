@@ -756,7 +756,7 @@ spec:
 
 ## See Also
 
-- [Installation Guide](installation.md) - Installation instructions
-- [User Guide](user-guide.md) - Usage guide
-- [API Reference](api-reference.md) - API documentation
-- [Examples](examples.md) - Example configurations
+- [Installation Guide](installation) - Installation instructions
+- [User Guide](user-guide) - Usage guide
+- [API Reference](api-reference) - API documentation
+- [Examples](examples) - Example configurations

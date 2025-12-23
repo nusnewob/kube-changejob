@@ -4,12 +4,12 @@ This directory contains the documentation for kube-changejob, published at [http
 
 ## Documentation Structure
 
-- **[index.md](index.md)** - Home page with overview and quick start
-- **[installation.md](installation.md)** - Detailed installation instructions
-- **[user-guide.md](user-guide.md)** - Complete usage guide with examples
-- **[api-reference.md](api-reference.md)** - CRD specification and API details
-- **[configuration.md](configuration.md)** - Controller configuration options
-- **[examples.md](examples.md)** - Real-world usage examples
+- **[index.md](index.md)** - Home page with overview and quick start ([view](https://nusnewob.github.io/kube-changejob/))
+- **[installation.md](installation.md)** - Detailed installation instructions ([view](https://nusnewob.github.io/kube-changejob/installation))
+- **[user-guide.md](user-guide.md)** - Complete usage guide with examples ([view](https://nusnewob.github.io/kube-changejob/user-guide))
+- **[api-reference.md](api-reference.md)** - CRD specification and API details ([view](https://nusnewob.github.io/kube-changejob/api-reference))
+- **[configuration.md](configuration.md)** - Controller configuration options ([view](https://nusnewob.github.io/kube-changejob/configuration))
+- **[examples.md](examples.md)** - Real-world usage examples ([view](https://nusnewob.github.io/kube-changejob/examples))
 
 ## Building Docs Locally
 
@@ -56,6 +56,7 @@ The documentation uses the [Just the Docs](https://just-the-docs.github.io/just-
 When adding or modifying documentation:
 
 1. Add Jekyll front matter to the top of each markdown file:
+
    ```yaml
    ---
    layout: default

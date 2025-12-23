@@ -88,11 +88,11 @@ kube-changejob is ideal for:
 
 ## Documentation
 
-- [**Installation Guide**](installation.md) - Detailed installation instructions
-- [**User Guide**](user-guide.md) - Complete usage guide with examples
-- [**API Reference**](api-reference.md) - CRD specification and API details
-- [**Configuration**](configuration.md) - Controller configuration options
-- [**Examples**](examples.md) - Real-world usage examples
+- [**Installation Guide**](installation) - Detailed installation instructions
+- [**User Guide**](user-guide) - Complete usage guide with examples
+- [**API Reference**](api-reference) - CRD specification and API details
+- [**Configuration**](configuration) - Controller configuration options
+- [**Examples**](examples) - Real-world usage examples
 
 ## How It Works
 
@@ -106,9 +106,9 @@ kube-changejob is ideal for:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    ChangeTriggeredJob                        │
+│                    ChangeTriggeredJob                       │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │ Spec:                                                  │  │
+│  │ Spec:                                                 │  │
 │  │  - jobTemplate: Job template to create                │  │
 │  │  - resources: List of resources to watch              │  │
 │  │  - condition: "Any" or "All"                          │  │
@@ -119,18 +119,18 @@ kube-changejob is ideal for:
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              ChangeTriggeredJob Controller                   │
-│  - Poll watched resources                                    │
-│  - Compute SHA256 hashes                                     │
-│  - Compare with stored hashes                                │
-│  - Evaluate trigger condition                                │
-│  - Create Job from template                                  │
-│  - Update status and clean up old jobs                       │
+│              ChangeTriggeredJob Controller                  │
+│  - Poll watched resources                                   │
+│  - Compute SHA256 hashes                                    │
+│  - Compare with stored hashes                               │
+│  - Evaluate trigger condition                               │
+│  - Create Job from template                                 │
+│  - Update status and clean up old jobs                      │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Kubernetes Jobs                           │
+│                    Kubernetes Jobs                          │
 │  Jobs owned by ChangeTriggeredJob (automatic cleanup)       │
 └─────────────────────────────────────────────────────────────┘
 ```

@@ -45,7 +45,7 @@ Before using kube-changejob, ensure you have:
 
 ### Installing kube-changejob
 
-See the [Installation Guide](installation.md) for detailed installation instructions.
+See the [Installation Guide](installation) for detailed installation instructions.
 
 Quick install:
 
@@ -1029,10 +1029,10 @@ kubectl auth can-i create changetriggeredjobs
 
 ## Next Steps
 
-- Review the [API Reference](api-reference.md) for detailed specification
-- Check [Examples](examples.md) for more use cases
-- Learn about [Configuration](configuration.md) options
-- Read the [Installation Guide](installation.md) for deployment options
+- Review the [API Reference](api-reference) for detailed specification
+- Check [Examples](examples) for more use cases
+- Learn about [Configuration](configuration) options
+- Read the [Installation Guide](installation) for deployment options
 
 ## Getting Help
 

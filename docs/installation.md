@@ -537,10 +537,10 @@ kubectl auth can-i --list --as=system:serviceaccount:kube-changejob-system:kube-
 
 ## Next Steps
 
-- Read the [User Guide](user-guide.md) to learn how to use kube-changejob
-- Check the [API Reference](api-reference.md) for detailed specifications
-- Review [Configuration](configuration.md) for advanced settings
-- Explore [Examples](examples.md) for common use cases
+- Read the [User Guide](user-guide) to learn how to use kube-changejob
+- Check the [API Reference](api-reference) for detailed specifications
+- Review [Configuration](configuration) for advanced settings
+- Explore [Examples](examples) for common use cases
 
 ## Getting Help
 

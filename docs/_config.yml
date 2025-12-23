@@ -89,6 +89,12 @@ plugins:
   - jekyll-seo-tag
   - jekyll-include-cache
   - jekyll-feed
+  - jekyll-relative-links
+
+# Relative links settings
+relative_links:
+  enabled: true
+  collections: false
 
 # Exclude from processing
 exclude:
@@ -112,6 +118,9 @@ kramdown:
       line_numbers: false
     span:
       line_numbers: false
+  auto_ids: true
+  input: GFM
+  hard_wrap: false
 
 # Compress HTML
 compress_html:

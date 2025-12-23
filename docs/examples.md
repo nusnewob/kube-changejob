@@ -871,7 +871,7 @@ kubectl delete changetriggeredjob <name>
 
 ## See Also
 
-- [User Guide](user-guide.md) - Complete usage guide
-- [API Reference](api-reference.md) - API specification
-- [Configuration](configuration.md) - Controller configuration
-- [Installation](installation.md) - Installation guide
+- [User Guide](user-guide) - Complete usage guide
+- [API Reference](api-reference) - API specification
+- [Configuration](configuration) - Controller configuration
+- [Installation](installation) - Installation guide
