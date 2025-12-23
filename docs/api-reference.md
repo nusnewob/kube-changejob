@@ -2,6 +2,7 @@
 layout: default
 title: API Reference
 nav_order: 4
+description: "CRD specification and API documentation"
 ---
 
 # API Reference

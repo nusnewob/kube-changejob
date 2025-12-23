@@ -2,6 +2,8 @@
 layout: default
 title: Home
 nav_order: 1
+description: "kube-changejob - Kubernetes operator for resource change triggered jobs"
+permalink: /
 ---
 
 # kube-changejob

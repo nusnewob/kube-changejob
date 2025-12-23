@@ -2,6 +2,7 @@
 layout: default
 title: User Guide
 nav_order: 3
+description: "Complete usage guide for kube-changejob"
 ---
 
 # User Guide

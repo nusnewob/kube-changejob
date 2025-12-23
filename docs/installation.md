@@ -2,6 +2,7 @@
 layout: default
 title: Installation Guide
 nav_order: 2
+description: "Detailed installation instructions for kube-changejob"
 ---
 
 # Installation Guide

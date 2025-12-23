@@ -2,6 +2,7 @@
 layout: default
 title: Examples
 nav_order: 6
+description: "Real-world usage examples and patterns"
 ---
 
 # Examples

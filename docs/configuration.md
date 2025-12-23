@@ -2,6 +2,7 @@
 layout: default
 title: Configuration
 nav_order: 5
+description: "Controller configuration options and settings"
 ---
 
 # Configuration Guide
