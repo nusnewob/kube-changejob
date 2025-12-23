@@ -2,9 +2,11 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nusnewob/kube-changejob)](https://goreportcard.com/report/github.com/nusnewob/kube-changejob)
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/nusnewob/kube-changejob)](https://github.com/nusnewob/kube-changejob/releases)
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/nusnewob/kube-changejob?include_prereleases)](https://github.com/nusnewob/kube-changejob/releases)
 [![Docker Image](https://img.shields.io/badge/container-ghcr.io-blue)](https://ghcr.io/nusnewob/kube-changejob)
 [![Helm Chart](https://img.shields.io/badge/helm-chart-blue)](https://ghcr.io/nusnewob/charts/kube-changejob)
+![GitHub branch check runs](https://img.shields.io/github/check-runs/nusnewob/kube-changejob/main)
+![Codecov](https://img.shields.io/codecov/c/github/nusnewob/kube-changejob)
 
 A Kubernetes operator that automatically triggers jobs when watched Kubernetes resources change.
 
