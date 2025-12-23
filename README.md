@@ -2,6 +2,9 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nusnewob/kube-changejob)](https://goreportcard.com/report/github.com/nusnewob/kube-changejob)
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/nusnewob/kube-changejob)](https://github.com/nusnewob/kube-changejob/releases)
+[![Docker Image](https://img.shields.io/badge/container-ghcr.io-blue)](https://ghcr.io/nusnewob/kube-changejob)
+[![Helm Chart](https://img.shields.io/badge/helm-chart-blue)](https://ghcr.io/nusnewob/charts/kube-changejob)
 
 A Kubernetes operator that automatically triggers jobs when watched Kubernetes resources change.
 
@@ -36,22 +39,35 @@ kube-changejob monitors specified Kubernetes resources and triggers jobs when ch
 
 ### Installation
 
-1. Install cert-manager (if not already installed):
+#### Option 1: Using kubectl (Stable Release)
 
 ```bash
+# Install cert-manager (if not already installed)
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.1/cert-manager.yaml
+
+# Install kube-changejob (replace VERSION with desired version)
+kubectl apply -f https://github.com/nusnewob/kube-changejob/releases/latest/download/install.yaml
+
+# Verify the installation
+kubectl get pods -n kube-changejob-system
 ```
 
-2. Install kube-changejob:
+#### Option 2: Using Helm
+
+```bash
+# Install from OCI registry
+helm install kube-changejob oci://ghcr.io/nusnewob/charts/kube-changejob --version 0.1.0
+
+# Or with custom values
+helm install kube-changejob oci://ghcr.io/nusnewob/charts/kube-changejob \
+  --version 0.1.0 \
+  --set image.tag=v0.1.0
+```
+
+#### Option 3: Using Kustomize (Development)
 
 ```bash
 kubectl apply -k github.com/nusnewob/kube-changejob/config/default
-```
-
-3. Verify the installation:
-
-```bash
-kubectl get pods -n kube-changejob-system
 ```
 
 ### Basic Usage

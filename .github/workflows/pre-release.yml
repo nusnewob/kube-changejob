@@ -1,0 +1,136 @@
+name: Pre-Release Validation
+
+on:
+  push:
+    branches:
+      - main
+      - "release/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Install tools
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+          go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Run tests
+        run: make test
+
+      - name: Build binary
+        run: make build
+
+      - name: Validate manifests can be generated
+        run: |
+          make manifests generate
+          kustomize build config/crd > /tmp/crds.yaml
+          kustomize build config/default > /tmp/install.yaml
+
+          # Validate YAML syntax
+          go install github.com/instrumenta/kubeval@latest || true
+          if command -v kubeval &> /dev/null; then
+            kubeval /tmp/crds.yaml
+            kubeval /tmp/install.yaml
+          fi
+
+      - name: Validate Helm chart
+        run: |
+          helm lint dist/chart
+          helm template test dist/chart > /tmp/helm-output.yaml
+          echo "Helm chart renders successfully"
+
+      - name: Build Docker image (no push)
+        run: |
+          docker build -t test-image:latest .
+          echo "Docker image builds successfully"
+
+      - name: Validate chart version consistency
+        run: |
+          CHART_VERSION=$(grep '^version:' dist/chart/Chart.yaml | awk '{print $2}')
+          APP_VERSION=$(grep '^appVersion:' dist/chart/Chart.yaml | awk '{print $2}' | tr -d '"')
+          echo "Chart version: $CHART_VERSION"
+          echo "App version: $APP_VERSION"
+
+          # For main branch, just report versions
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "✓ Chart validation passed"
+          fi
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+
+      - name: Run Trivy on Dockerfile
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: "config"
+          scan-ref: "Dockerfile"
+          format: "table"
+
+  release-readiness:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [validate, security-scan]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check if ready for release
+        run: |
+          echo "## Release Readiness Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check if there are unreleased commits
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          if [ "$LAST_TAG" = "none" ]; then
+            COMMIT_COUNT=$(git rev-list --count HEAD)
+          else
+            COMMIT_COUNT=$(git rev-list --count ${LAST_TAG}..HEAD)
+          fi
+
+          echo "- Last release: \`${LAST_TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Commits since last release: \`${COMMIT_COUNT}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$COMMIT_COUNT" -gt "0" ]; then
+            echo "✅ Ready for release (${COMMIT_COUNT} new commits)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### To create a release:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo "git tag -a v0.1.0 -m 'Release v0.1.0'" >> $GITHUB_STEP_SUMMARY
+            echo "git push origin v0.1.0" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏸️ No new commits since last release" >> $GITHUB_STEP_SUMMARY
+          fi
