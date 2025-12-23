@@ -302,9 +302,9 @@ Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for g
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    ChangeTriggeredJob                        │
+│                    ChangeTriggeredJob                       │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │ Spec:                                                  │  │
+│  │ Spec:                                                 │  │
 │  │  - jobTemplate: Job template to create                │  │
 │  │  - resources: List of resources to watch              │  │
 │  │  - condition: "Any" or "All"                          │  │
@@ -315,8 +315,8 @@ Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for g
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              ChangeTriggeredJob Controller                   │
-│                                                              │
+│              ChangeTriggeredJob Controller                  │
+│                                                             │
 │  1. Poll watched resources (every 60s)                      │
 │  2. Compute SHA256 hash of resource data                    │
 │  3. Compare with stored hashes                              │
@@ -329,13 +329,13 @@ Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for g
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Kubernetes Jobs                           │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │ Job 1    │  │ Job 2    │  │ Job 3    │  │ Job 4    │   │
-│  │ (oldest) │  │          │  │          │  │ (latest) │   │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
-│                                                              │
+│                    Kubernetes Jobs                          │
+│                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│  │ Job 1    │  │ Job 2    │  │ Job 3    │  │ Job 4    │     │
+│  │ (oldest) │  │          │  │          │  │ (latest) │     │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
+│                                                             │
 │  Jobs owned by ChangeTriggeredJob (automatic cleanup)       │
 └─────────────────────────────────────────────────────────────┘
 ```
