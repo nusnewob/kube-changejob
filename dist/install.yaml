@@ -19,6 +19,9 @@ spec:
     kind: ChangeTriggeredJob
     listKind: ChangeTriggeredJobList
     plural: changetriggeredjobs
+    shortNames:
+    - ctj
+    - ctjs
     singular: changetriggeredjob
   scope: Namespaced
   versions:

@@ -1,16 +1,51 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-    labels:
-        app.kubernetes.io/managed-by: {{ .Release.Service }}
-        app.kubernetes.io/name: kube-changejob
     name: kube-changejob-manager-role
 rules:
     - apiGroups:
-        - ""
+        - '*'
       resources:
-        - pods
+        - '*'
       verbs:
         - get
         - list
         - watch
+    - apiGroups:
+        - batch
+      resources:
+        - jobs
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - triggers.changejob.dev
+      resources:
+        - changetriggeredjobs
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - triggers.changejob.dev
+      resources:
+        - changetriggeredjobs/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - triggers.changejob.dev
+      resources:
+        - changetriggeredjobs/status
+      verbs:
+        - get
+        - patch
+        - update

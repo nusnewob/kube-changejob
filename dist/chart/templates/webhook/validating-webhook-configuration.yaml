@@ -1,0 +1,29 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+    annotations:
+        {{- if .Values.certManager.enable }}
+        cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/kube-changejob-serving-cert
+        {{- end }}
+    name: kube-changejob-validating-webhook-configuration
+webhooks:
+    - admissionReviewVersions:
+        - v1
+      clientConfig:
+        service:
+            name: kube-changejob-webhook-service
+            namespace: {{ .Release.Namespace }}
+            path: /validate-triggers-changejob-dev-v1alpha-changetriggeredjob
+      failurePolicy: Fail
+      name: vchangetriggeredjob-v1alpha.kb.io
+      rules:
+        - apiGroups:
+            - triggers.changejob.dev
+          apiVersions:
+            - v1alpha
+          operations:
+            - CREATE
+            - UPDATE
+          resources:
+            - changetriggeredjobs
+      sideEffects: None

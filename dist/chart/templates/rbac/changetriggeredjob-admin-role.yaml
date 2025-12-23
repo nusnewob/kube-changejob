@@ -1,0 +1,22 @@
+{{- if .Values.rbacHelpers.enable }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+    labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+        app.kubernetes.io/name: kube-changejob
+    name: kube-changejob-changetriggeredjob-admin-role
+rules:
+    - apiGroups:
+        - triggers.changejob.dev
+      resources:
+        - changetriggeredjobs
+      verbs:
+        - '*'
+    - apiGroups:
+        - triggers.changejob.dev
+      resources:
+        - changetriggeredjobs/status
+      verbs:
+        - get
+{{- end }}
