@@ -4,14 +4,6 @@ metadata:
     name: kube-changejob-manager-role
 rules:
     - apiGroups:
-        - '*'
-      resources:
-        - '*'
-      verbs:
-        - get
-        - list
-        - watch
-    - apiGroups:
         - batch
       resources:
         - jobs
@@ -49,3 +41,11 @@ rules:
         - get
         - patch
         - update
+    {{- range .Values.manager.watchResources }}
+    - apiGroups: {{ toJson .apiGroups }}
+      resources: {{ toJson .resources }}
+      verbs:
+        - get
+        - list
+        - watch
+    {{- end }}

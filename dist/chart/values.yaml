@@ -22,6 +22,12 @@ manager:
   # Environment variables
   env: []
 
+  # Controller watched resources types, also configures controller RBAC permissions
+  # Default allows to watch all resources
+  watchResources:
+    - apiGroups: ["*"]
+      resources: ["*"]
+
   # Pod-level security settings
   podSecurityContext:
     runAsNonRoot: true
