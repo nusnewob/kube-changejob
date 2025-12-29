@@ -144,10 +144,7 @@ func (p *Poller) Poll(ctx context.Context, ref triggersv1alpha.ResourceReference
 func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) (bool, []triggersv1alpha.ResourceReferenceStatus, error) {
 	poller := Poller{Client: r.Client}
 
-	// existing := IndexResourceStatuses(changeJob.Status.ResourceHashes)
 	updated := make([]triggersv1alpha.ResourceReferenceStatus, 0, len(changeJob.Spec.Resources))
-
-	changed := false
 	changeCount := 0
 	fieldCount := 0
 
@@ -195,6 +192,7 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 		}
 	}
 
+	changed := false
 	if changeCount > 0 {
 		log.V(1).Info(fmt.Sprintf("%d of %d resources changed", changeCount, len(changeJob.Spec.Resources)))
 		switch *changeJob.Spec.Condition {
@@ -206,7 +204,6 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 				changed = true
 				log.V(1).Info("Trigger condition satisfied")
 			} else {
-				changed = false
 				log.V(1).Info("Trigger condition not satisfied")
 			}
 		}

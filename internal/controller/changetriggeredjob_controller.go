@@ -81,10 +81,8 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	if changed {
 		// Check if we should trigger (first time or after cooldown)
-		if changeJob.Status.LastTriggeredTime == nil ||
-			time.Since(changeJob.Status.LastTriggeredTime.Time) >= changeJob.Spec.Cooldown.Duration {
+		if changeJob.Status.LastTriggeredTime == nil || time.Since(changeJob.Status.LastTriggeredTime.Time) >= changeJob.Spec.Cooldown.Duration {
 			log.Info("ChangeTriggeredJob triggered", "name", changeJob.Name)
-			log.Info("Creating Job")
 			job, err := r.triggerJob(ctx, &changeJob)
 			if err != nil {
 				log.Error(err, "unable to trigger job")
@@ -93,14 +91,6 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 			if err := r.updateStatus(ctx, &changeJob, job, updatedStatuses); err != nil {
 				log.Error(err, "unable to update status")
 			}
-		} else {
-			log.V(1).Info("Changes detected but still in cooldown period")
-		}
-	} else {
-		// No changes, but we still need to update the resource hashes to reflect current state
-		changeJob.Status.ResourceHashes = updatedStatuses
-		if err := r.Status().Update(ctx, &changeJob); err != nil {
-			log.Error(err, "unable to update resource hashes")
 		}
 	}
 
