@@ -72,15 +72,42 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 	if changeJob.Status.ResourceHashes == nil {
 		changeJob.Status.ResourceHashes = updatedStatuses
 		if err := r.Status().Update(ctx, &changeJob); err != nil {
+			log.Error(err, "unable to update resource hashes")
 			return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 		}
+		log.V(1).Info("Initialized resource hashes", "count", len(updatedStatuses))
 		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, nil
+	}
+
+	if changed {
+		// Check if we should trigger (first time or after cooldown)
+		if changeJob.Status.LastTriggeredTime == nil ||
+			time.Since(changeJob.Status.LastTriggeredTime.Time) >= changeJob.Spec.Cooldown.Duration {
+			log.Info("ChangeTriggeredJob triggered", "name", changeJob.Name)
+			log.Info("Creating Job")
+			job, err := r.triggerJob(ctx, &changeJob)
+			if err != nil {
+				log.Error(err, "unable to trigger job")
+			}
+
+			if err := r.updateStatus(ctx, &changeJob, job, updatedStatuses); err != nil {
+				log.Error(err, "unable to update status")
+			}
+		} else {
+			log.V(1).Info("Changes detected but still in cooldown period")
+		}
+	} else {
+		// No changes, but we still need to update the resource hashes to reflect current state
+		changeJob.Status.ResourceHashes = updatedStatuses
+		if err := r.Status().Update(ctx, &changeJob); err != nil {
+			log.Error(err, "unable to update resource hashes")
+		}
 	}
 
 	// Update LastJobStatus status
 	histories, err := r.listOwnedJobs(ctx, &changeJob)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
+		log.Error(err, "unable to get job histories")
 	}
 	if len(histories) != 0 {
 		if histories[0].Status.Failed != 0 {
@@ -91,7 +118,7 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateSucceeded
 		}
 		if err := r.Status().Update(ctx, &changeJob); err != nil {
-			return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
+			log.Error(err, "unable to update job status")
 		}
 	}
 
@@ -101,28 +128,8 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 		for _, history := range histories[*changeJob.Spec.History:] {
 			if err := r.Delete(ctx, &history); err != nil {
 				log.Error(err, "Failed to delete old job", "job", history.Name)
-				return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 			}
 			log.Info("Deleted old job", "job", history.Name)
-		}
-	}
-
-	if !changed {
-		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, nil
-	}
-
-	// Check if we should trigger (first time or after cooldown)
-	if changeJob.Status.LastTriggeredTime == nil ||
-		time.Since(changeJob.Status.LastTriggeredTime.Time) >= changeJob.Spec.Cooldown.Duration {
-		log.Info("ChangeTriggeredJob triggered", "name", changeJob.Name)
-		log.Info("Creating Job")
-		job, err := r.triggerJob(ctx, &changeJob)
-		if err != nil {
-			return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
-		}
-
-		if err := r.updateStatus(ctx, &changeJob, job, updatedStatuses); err != nil {
-			return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 		}
 	}
 
