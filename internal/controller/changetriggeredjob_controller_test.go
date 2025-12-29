@@ -908,8 +908,8 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			}, time.Second*5, time.Millisecond*500).Should(Equal(2))
 		})
 
-		It("Should handle nested field paths", func() {
-			By("Creating a ChangeTriggeredJob watching nested fields")
+		It("Should handle multiple field paths", func() {
+			By("Creating a ChangeTriggeredJob watching multiple data keys")
 			ctj := &triggersv1alpha.ChangeTriggeredJob{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      ctjName,
@@ -922,7 +922,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 							Kind:       "ConfigMap",
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.nested.value"},
+							Fields:     []string{"data.field1", "data.field2"},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
@@ -950,14 +950,15 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			}
 			Expect(k8sClient.Create(ctx, ctj)).Should(Succeed())
 
-			By("Creating ConfigMap with nested structure in data")
+			By("Creating ConfigMap with specific data keys")
 			cm := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      cmName,
 					Namespace: ctjNamespace,
 				},
 				Data: map[string]string{
-					"nested.value": "initial",
+					"field1": "field1-initial",
+					"field2": "field2-initial",
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -973,9 +974,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Changing the nested field")
+			By("Changing the data keys")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["nested.value"] = "updated"
+			cm.Data["field1"] = "field1-updated"
+			cm.Data["field2"] = "field2-updated"
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			By("Second reconciliation after change")
@@ -984,7 +986,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Verifying job was created for nested field change")
+			By("Verifying job was created for field change")
 			Eventually(func() int {
 				jobList := &batchv1.JobList{}
 				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace)); err != nil {

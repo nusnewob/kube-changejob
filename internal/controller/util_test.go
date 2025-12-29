@@ -204,71 +204,57 @@ var _ = Describe("Poller", func() {
 
 			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
 		})
+
+		It("Should handle wildcard field selector", func() {
+			cmName := fmt.Sprintf("test-cm-%d", time.Now().UnixNano())
+
+			By("Creating a ConfigMap")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: namespace,
+				},
+				Data: map[string]string{
+					"key1": testValue1,
+					"key2": testValue2,
+				},
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			By("Polling with wildcard selector")
+			ref := triggersv1alpha.ResourceReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       cmName,
+				Namespace:  namespace,
+				Fields:     []string{"*"},
+			}
+
+			status, err := poller.Poll(ctx, ref)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying wildcard field is hashed")
+			Expect(status.Fields).To(HaveLen(1))
+			Expect(status.Fields[0].Field).To(Equal("*"))
+			Expect(status.Fields[0].LastHash).NotTo(BeEmpty())
+
+			By("Updating the ConfigMap")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: namespace}, cm)).Should(Succeed())
+			cm.Data["key1"] = testValue3
+			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
+
+			By("Polling again with wildcard")
+			status2, err := poller.Poll(ctx, ref)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying hash changed")
+			Expect(status2.Fields[0].LastHash).NotTo(Equal(status.Fields[0].LastHash))
+
+			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
+		})
 	})
 
 	Context("Helper functions", func() {
-		It("Should generate correct resource keys", func() {
-			By("Testing with namespace")
-			key := ResourceKey("v1", "ConfigMap", "default", "my-cm")
-			Expect(key).To(Equal("v1/ConfigMap/default/my-cm"))
-
-			By("Testing without namespace (cluster-scoped)")
-			key = ResourceKey("v1", "Node", "", "my-node")
-			Expect(key).To(Equal("v1/Node/my-node"))
-		})
-
-		It("Should index resource statuses correctly", func() {
-			By("Creating resource statuses")
-			statuses := []triggersv1alpha.ResourceReferenceStatus{
-				{
-					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "cm1",
-					Namespace:  "default",
-				},
-				{
-					APIVersion: "v1",
-					Kind:       "Secret",
-					Name:       "secret1",
-					Namespace:  "default",
-				},
-			}
-
-			By("Indexing the statuses")
-			index := IndexResourceStatuses(statuses)
-
-			By("Verifying index contains correct keys")
-			Expect(index).To(HaveLen(2))
-			Expect(index).To(HaveKey("v1/ConfigMap/default/cm1"))
-			Expect(index).To(HaveKey("v1/Secret/default/secret1"))
-		})
-
-		It("Should index resource references correctly", func() {
-			By("Creating resource references")
-			references := []triggersv1alpha.ResourceReference{
-				{
-					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "cm1",
-					Namespace:  "default",
-				},
-				{
-					APIVersion: "v1",
-					Kind:       "Secret",
-					Name:       "secret1",
-					Namespace:  "default",
-				},
-			}
-
-			By("Indexing the references")
-			index := IndexResourceReferences(references)
-
-			By("Verifying index contains correct keys")
-			Expect(index).To(HaveLen(2))
-			Expect(index).To(HaveKey("v1/ConfigMap/default/cm1"))
-			Expect(index).To(HaveKey("v1/Secret/default/secret1"))
-		})
-
 		It("Should hash objects consistently", func() {
 			By("Hashing the same object twice")
 			obj := map[string]any{

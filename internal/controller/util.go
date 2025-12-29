@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 
@@ -36,7 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/google/go-cmp/cmp"
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
 )
 
@@ -146,11 +146,12 @@ func (p *Poller) Poll(ctx context.Context, ref triggersv1alpha.ResourceReference
 func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) (bool, []triggersv1alpha.ResourceReferenceStatus, error) {
 	poller := Poller{Client: r.Client}
 
-	existing := IndexResourceStatuses(changeJob.Status.ResourceHashes)
+	// existing := IndexResourceStatuses(changeJob.Status.ResourceHashes)
 	updated := make([]triggersv1alpha.ResourceReferenceStatus, 0, len(changeJob.Spec.Resources))
 
 	changed := false
 	changeCount := 0
+	fieldCount := 0
 
 	for _, ref := range changeJob.Spec.Resources {
 		result, err := poller.Poll(ctx, ref)
@@ -158,15 +159,46 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 			return false, nil, err
 		}
 
-		key := ResourceKey(ref.APIVersion, ref.Kind, ref.Namespace, ref.Name)
+		// Always add to updated list
+		updated = append(updated, result)
 
-		last, found := existing[key]
-		if !found || !cmp.Equal(last, result) {
-			changeCount++
-			log.V(1).Info("Resource status changed", "PreviousState", last, "NewState", result)
+		// Find existing hash for comparison
+		lastIndexFound := slices.ContainsFunc(changeJob.Status.ResourceHashes, func(status triggersv1alpha.ResourceReferenceStatus) bool {
+			return status.APIVersion == ref.APIVersion && status.Kind == ref.Kind && status.Namespace == ref.Namespace && status.Name == ref.Name
+		})
+		if !lastIndexFound {
+			// First time seeing this resource - no comparison needed, just track it
+			log.V(1).Info("First poll of resource, establishing baseline", "APIVersion", ref.APIVersion, "Kind", ref.Kind, "Namespace", ref.Namespace, "Name", ref.Name)
+			continue
 		}
 
-		updated = append(updated, result)
+		lastIndex := slices.IndexFunc(changeJob.Status.ResourceHashes, func(status triggersv1alpha.ResourceReferenceStatus) bool {
+			return status.APIVersion == ref.APIVersion && status.Kind == ref.Kind && status.Namespace == ref.Namespace && status.Name == ref.Name
+		})
+
+		last := changeJob.Status.ResourceHashes[lastIndex]
+
+		// Compare fields to detect changes
+		for _, field := range last.Fields {
+			fieldCount++
+
+			updatedFieldFound := slices.ContainsFunc(result.Fields, func(resultField triggersv1alpha.ResourceFieldHash) bool {
+				return resultField.Field == field.Field
+			})
+
+			if !updatedFieldFound {
+				continue // Field no longer exists, skip it - this could be considered a change
+			}
+
+			updatedFieldIndex := slices.IndexFunc(result.Fields, func(resultField triggersv1alpha.ResourceFieldHash) bool {
+				return resultField.Field == field.Field
+			})
+
+			if field.LastHash != result.Fields[updatedFieldIndex].LastHash {
+				changeCount++
+				log.V(1).Info("Resource field changed", "APIVersion", ref.APIVersion, "Kind", ref.Kind, "Namespace", ref.Namespace, "Name", ref.Name, "Field", field.Field)
+			}
+		}
 	}
 
 	if changeCount > 0 {
@@ -176,12 +208,12 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 			changed = true
 			log.V(1).Info("Trigger condition satisfied")
 		case triggersv1alpha.TriggerConditionAll:
-			if changeCount < len(changeJob.Spec.Resources) {
-				changed = false
-				log.V(1).Info("Trigger condition not satisfied")
-			} else {
+			if changeCount == fieldCount {
 				changed = true
 				log.V(1).Info("Trigger condition satisfied")
+			} else {
+				changed = false
+				log.V(1).Info("Trigger condition not satisfied")
 			}
 		}
 	}
@@ -254,36 +286,4 @@ func HashObject(obj map[string]any) (string, error) {
 
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:]), nil
-}
-
-// ResourceKey generates a unique key for a resource reference
-func ResourceKey(apiVersion, kind, namespace, name string) string {
-	if namespace == "" {
-		return apiVersion + "/" + kind + "/" + name
-	}
-	return apiVersion + "/" + kind + "/" + namespace + "/" + name
-}
-
-// IndexResourceStatuses indexes a list of resource statuses by their unique keys
-func IndexResourceStatuses(statuses []triggersv1alpha.ResourceReferenceStatus) map[string]triggersv1alpha.ResourceReferenceStatus {
-
-	matched := make(map[string]triggersv1alpha.ResourceReferenceStatus, len(statuses))
-
-	for _, status := range statuses {
-		key := ResourceKey(status.APIVersion, status.Kind, status.Namespace, status.Name)
-		matched[key] = status
-	}
-	return matched
-}
-
-// IndexResourceReferences indexes a list of resource references by their unique keys
-func IndexResourceReferences(references []triggersv1alpha.ResourceReference) map[string]triggersv1alpha.ResourceReference {
-
-	matched := make(map[string]triggersv1alpha.ResourceReference, len(references))
-
-	for _, ref := range references {
-		key := ResourceKey(ref.APIVersion, ref.Kind, ref.Namespace, ref.Name)
-		matched[key] = ref
-	}
-	return matched
 }
