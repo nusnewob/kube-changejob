@@ -98,7 +98,6 @@ func (p *Poller) Poll(ctx context.Context, ref triggersv1alpha.ResourceReference
 	log.V(1).Info("Resource fetched", "resource", obj)
 
 	hashes := make([]triggersv1alpha.ResourceFieldHash, 0, len(ref.Fields))
-	extracted := make(map[string]any)
 
 	for _, field := range ref.Fields {
 		if field == "*" {
@@ -121,8 +120,7 @@ func (p *Poller) Poll(ctx context.Context, ref triggersv1alpha.ResourceReference
 			return triggersv1alpha.ResourceReferenceStatus{}, err
 		}
 		if found {
-			extracted[field] = val
-			hash, err := HashObject(extracted)
+			hash, err := HashObject(map[string]any{field: val})
 			if err != nil {
 				return triggersv1alpha.ResourceReferenceStatus{}, err
 			}
@@ -171,11 +169,9 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 			log.V(1).Info("First poll of resource, establishing baseline", "APIVersion", ref.APIVersion, "Kind", ref.Kind, "Namespace", ref.Namespace, "Name", ref.Name)
 			continue
 		}
-
 		lastIndex := slices.IndexFunc(changeJob.Status.ResourceHashes, func(status triggersv1alpha.ResourceReferenceStatus) bool {
 			return status.APIVersion == ref.APIVersion && status.Kind == ref.Kind && status.Namespace == ref.Namespace && status.Name == ref.Name
 		})
-
 		last := changeJob.Status.ResourceHashes[lastIndex]
 
 		// Compare fields to detect changes
@@ -185,11 +181,9 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 			updatedFieldFound := slices.ContainsFunc(result.Fields, func(resultField triggersv1alpha.ResourceFieldHash) bool {
 				return resultField.Field == field.Field
 			})
-
 			if !updatedFieldFound {
 				continue // Field no longer exists, skip it - this could be considered a change
 			}
-
 			updatedFieldIndex := slices.IndexFunc(result.Fields, func(resultField triggersv1alpha.ResourceFieldHash) bool {
 				return resultField.Field == field.Field
 			})
