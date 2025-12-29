@@ -83,43 +83,30 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 		// Check if we should trigger (first time or after cooldown)
 		if changeJob.Status.LastTriggeredTime == nil || time.Since(changeJob.Status.LastTriggeredTime.Time) >= changeJob.Spec.Cooldown.Duration {
 			log.Info("ChangeTriggeredJob triggered", "name", changeJob.Name)
-			job, err := r.triggerJob(ctx, &changeJob)
-			if err != nil {
+			if _, err := r.triggerJob(ctx, &changeJob); err != nil {
 				log.Error(err, "unable to trigger job")
-			}
-
-			if err := r.updateStatus(ctx, &changeJob, job, updatedStatuses); err != nil {
-				log.Error(err, "unable to update status")
 			}
 		}
 	}
 
-	// Update LastJobStatus status
+	// Update status
+	if err := r.updateStatus(ctx, &changeJob, updatedStatuses); err != nil {
+		log.Error(err, "unable to update status")
+	}
+
+	// Delete job history > changeJob.Spec.History
 	histories, err := r.listOwnedJobs(ctx, &changeJob)
 	if err != nil {
 		log.Error(err, "unable to get job histories")
 	}
-	if len(histories) != 0 {
-		if histories[0].Status.Failed != 0 {
-			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateFailed
-		} else if histories[0].Status.Active != 0 {
-			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateActive
-		} else if histories[0].Status.Succeeded != 0 {
-			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateSucceeded
-		}
-		if err := r.Status().Update(ctx, &changeJob); err != nil {
-			log.Error(err, "unable to update job status")
-		}
-	}
 
-	// Delete job history > changeJob.Spec.History
 	if len(histories) > int(*changeJob.Spec.History) {
 		log.Info("Cleaning up old jobs", "total", len(histories), "limit", *changeJob.Spec.History, "toDelete", len(histories)-int(*changeJob.Spec.History))
 		for _, history := range histories[*changeJob.Spec.History:] {
 			if err := r.Delete(ctx, &history); err != nil {
 				log.Error(err, "Failed to delete old job", "job", history.Name)
 			}
-			log.Info("Deleted old job", "job", history.Name)
+			log.V(1).Info("Deleted old job", "job", history.Name)
 		}
 	}
 

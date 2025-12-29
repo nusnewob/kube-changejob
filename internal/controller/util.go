@@ -213,21 +213,37 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 }
 
 // Update Status
-func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob, job *batchv1.Job, status []triggersv1alpha.ResourceReferenceStatus) error {
-	changeJob.Status.LastJobName = job.Name
-	// Use current time if StartTime is not set yet
-	if job.Status.StartTime != nil {
-		changeJob.Status.LastTriggeredTime = job.Status.StartTime
-	} else {
-		changeJob.Status.LastTriggeredTime = ptr.To(metav1.Now())
-	}
-
+func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob, status []triggersv1alpha.ResourceReferenceStatus) error {
 	changeJob.Status.ResourceHashes = status
-	if err := r.Status().Update(ctx, changeJob); err != nil {
-		return err
+
+	histories, err := r.listOwnedJobs(ctx, changeJob)
+	if err != nil {
+		return fmt.Errorf("unable to get job histories: %w", err)
 	}
 
-	log.Info("Status updated", "job", job.Name)
+	if len(histories) > 0 {
+		// Use current time if StartTime is not set yet
+		changeJob.Status.LastJobName = histories[0].Name
+		if histories[0].Status.StartTime != nil {
+			changeJob.Status.LastTriggeredTime = histories[0].Status.StartTime
+		} else {
+			changeJob.Status.LastTriggeredTime = ptr.To(metav1.Now())
+		}
+
+		// Update LastJobStatus status
+		if histories[0].Status.Failed != 0 {
+			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateFailed
+		} else if histories[0].Status.Active != 0 {
+			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateActive
+		} else if histories[0].Status.Succeeded != 0 {
+			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateSucceeded
+		}
+	}
+
+	if err := r.Status().Update(ctx, changeJob); err != nil {
+		return fmt.Errorf("unable to update job status: %w", err)
+	}
+
 	return nil
 }
 
