@@ -1,0 +1,9 @@
+coverage:
+  status:
+    project:
+      default:
+        paths:
+          - internal/**/*.go
+      cmd:
+        paths:
+          - cmd/**/*.go
