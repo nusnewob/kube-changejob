@@ -43,11 +43,23 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 		})
 
 		AfterEach(func() {
-			// Force delete all jobs first
+			// Clean up ConfigMap for this test
+			cm := &corev1.ConfigMap{}
+			if err := k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm); err == nil {
+				_ = k8sClient.Delete(ctx, cm)
+			}
+
+			// Clean up Jobs owned by this CTJ (using label selector)
 			jobList := &batchv1.JobList{}
-			if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace)); err == nil {
+			if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName}); err == nil {
 				for i := range jobList.Items {
 					job := &jobList.Items[i]
+					// Remove finalizers to speed up deletion
+					if len(job.Finalizers) > 0 {
+						job.Finalizers = []string{}
+						_ = k8sClient.Update(ctx, job)
+					}
+					// Delete with background propagation (faster)
 					propagationPolicy := metav1.DeletePropagationBackground
 					_ = k8sClient.Delete(ctx, job, &client.DeleteOptions{
 						PropagationPolicy: &propagationPolicy,
@@ -58,20 +70,34 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			// Clean up ChangeTriggeredJob
 			ctj := &triggersv1alpha.ChangeTriggeredJob{}
 			if err := k8sClient.Get(ctx, types.NamespacedName{Name: ctjName, Namespace: ctjNamespace}, ctj); err == nil {
-				_ = k8sClient.Delete(ctx, ctj)
+				propagationPolicy := metav1.DeletePropagationBackground
+				_ = k8sClient.Delete(ctx, ctj, &client.DeleteOptions{
+					PropagationPolicy: &propagationPolicy,
+				})
 			}
 
-			// Clean up ConfigMaps
-			cmList := &corev1.ConfigMapList{}
-			if err := k8sClient.List(ctx, cmList, client.InNamespace(ctjNamespace)); err == nil {
-				for i := range cmList.Items {
-					cm := &cmList.Items[i]
-					_ = k8sClient.Delete(ctx, cm)
+			// Wait for test-specific resources to be deleted
+			Eventually(func() bool {
+				// Check CTJ is gone
+				ctj := &triggersv1alpha.ChangeTriggeredJob{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: ctjName, Namespace: ctjNamespace}, ctj); err == nil {
+					return false
 				}
-			}
 
-			// Wait a moment for cleanup to complete
-			time.Sleep(100 * time.Millisecond)
+				// Check ConfigMap is gone
+				cm := &corev1.ConfigMap{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm); err == nil {
+					return false
+				}
+
+				// Check jobs owned by this CTJ are gone
+				jobList := &batchv1.JobList{}
+				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName}); err == nil && len(jobList.Items) > 0 {
+					return false
+				}
+
+				return true
+			}, time.Second*20, time.Millisecond*200).Should(BeTrue(), "Test resources should be fully deleted")
 		})
 
 		It("Should detect field changes in watched resources", func() {
@@ -257,7 +283,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Verifying no job created on initial reconciliation")
 			jobList := &batchv1.JobList{}
-			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace))).Should(Succeed())
+			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
 			Expect(jobList.Items).To(BeEmpty())
 
 			By("First change triggers job")
@@ -385,7 +411,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Verifying no job created on initial reconciliation")
 			jobList := &batchv1.JobList{}
-			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace))).Should(Succeed())
+			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
 			Expect(jobList.Items).To(BeEmpty())
 
 			By("Change to monitored field triggers first job")
@@ -517,6 +543,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
 				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
@@ -604,6 +631,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
 				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
@@ -672,6 +700,8 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			By("First reconciliation establishes baseline")
@@ -778,6 +808,8 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			By("Initial reconciliation establishes baseline")
@@ -861,6 +893,8 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			By("Initial reconciliation establishes baseline")
@@ -966,6 +1000,8 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			By("Initial reconciliation")
@@ -1059,6 +1095,8 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			By("Initial reconciliation")
@@ -1152,6 +1190,8 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			By("Initial reconciliation")
@@ -1255,6 +1295,8 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			controllerReconciler := &ChangeTriggeredJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
 			}
 
 			By("Initial reconciliation establishes baseline")
@@ -1280,10 +1322,6 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			By("Verifying 2 jobs were created before cleanup")
 			jobList := &batchv1.JobList{}
 			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
-			fmt.Printf("Jobs before cleanup: %d\n", len(jobList.Items))
-			for _, job := range jobList.Items {
-				fmt.Printf("  - Job: %s, Created: %v\n", job.Name, job.CreationTimestamp)
-			}
 			Expect(jobList.Items).To(HaveLen(2))
 
 			By("Triggering additional reconciliation to cleanup old jobs")
@@ -1298,13 +1336,26 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName}); err != nil {
 					return -1
 				}
-				fmt.Printf("Jobs count in Eventually: %d\n", len(jobList.Items))
-				return len(jobList.Items)
-			}, time.Second*90, time.Millisecond*1000).Should(Equal(2)) // TODO: needs fixing, should be 1
+				// Count only jobs that are not being deleted (DeletionTimestamp is nil)
+				activeCount := 0
+				for _, job := range jobList.Items {
+					if job.DeletionTimestamp == nil {
+						activeCount++
+					}
+				}
+				return activeCount
+			}, time.Second*90, time.Millisecond*1000).Should(Equal(1))
 
 			By("Verifying the oldest jobs were deleted")
 			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
-			Expect(jobList.Items).To(HaveLen(2)) // TODO: needs fixing, should be 1
+			// Filter out jobs being deleted
+			activeJobs := []batchv1.Job{}
+			for _, job := range jobList.Items {
+				if job.DeletionTimestamp == nil {
+					activeJobs = append(activeJobs, job)
+				}
+			}
+			Expect(activeJobs).To(HaveLen(1))
 		})
 
 		It("Should use configured poll interval for reconciliation", func() {

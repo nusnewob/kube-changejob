@@ -286,5 +286,192 @@ var _ = Describe("Poller", func() {
 			By("Verifying hashes are different")
 			Expect(hash1).NotTo(Equal(hash2))
 		})
+
+		It("Should produce consistent hashes regardless of key ordering", func() {
+			By("Hashing objects with different key ordering")
+			obj1 := map[string]any{
+				"a": "1",
+				"b": "2",
+				"c": "3",
+			}
+			obj2 := map[string]any{
+				"c": "3",
+				"a": "1",
+				"b": "2",
+			}
+
+			hash1, err := HashObject(obj1)
+			Expect(err).NotTo(HaveOccurred())
+
+			hash2, err := HashObject(obj2)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying hashes are identical (deterministic)")
+			// Note: Go's JSON marshaling should be deterministic for maps
+			Expect(hash1).To(Equal(hash2))
+		})
+
+		It("Should handle nested objects", func() {
+			By("Hashing nested objects")
+			obj := map[string]any{
+				"outer": map[string]any{
+					"inner": "value",
+				},
+			}
+
+			hash, err := HashObject(obj)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(hash).NotTo(BeEmpty())
+		})
+	})
+
+	Context("Edge cases and robustness", func() {
+		It("Should detect when a watched field is deleted from a resource", func() {
+			cmName := fmt.Sprintf("test-cm-%d", time.Now().UnixNano())
+
+			By("Creating a ConfigMap with multiple fields")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: namespace,
+				},
+				Data: map[string]string{
+					"key1": testValue1,
+					"key2": testValue2,
+				},
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			By("First poll with both fields")
+			ref := triggersv1alpha.ResourceReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       cmName,
+				Namespace:  namespace,
+				Fields:     []string{"data.key1", "data.key2"},
+			}
+
+			status1, err := poller.Poll(ctx, ref)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status1.Fields).To(HaveLen(2))
+
+			By("Deleting key1 from ConfigMap")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: namespace}, cm)).Should(Succeed())
+			delete(cm.Data, "key1")
+			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
+
+			By("Second poll after field deletion")
+			status2, err := poller.Poll(ctx, ref)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying only key2 is present in results")
+			Expect(status2.Fields).To(HaveLen(1))
+			Expect(status2.Fields[0].Field).To(Equal("data.key2"))
+
+			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
+		})
+
+		It("Should handle resources with many fields efficiently", func() {
+			cmName := fmt.Sprintf("test-cm-%d", time.Now().UnixNano())
+
+			By("Creating a ConfigMap with 50 fields")
+			data := make(map[string]string)
+			fields := make([]string, 50)
+			for i := range 50 {
+				key := fmt.Sprintf("key%d", i)
+				data[key] = fmt.Sprintf("value%d", i)
+				fields[i] = fmt.Sprintf("data.%s", key)
+			}
+
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: namespace,
+				},
+				Data: data,
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			By("Polling with all 50 fields")
+			ref := triggersv1alpha.ResourceReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       cmName,
+				Namespace:  namespace,
+				Fields:     fields,
+			}
+
+			start := time.Now()
+			status, err := poller.Poll(ctx, ref)
+			duration := time.Since(start)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status.Fields).To(HaveLen(50))
+
+			By("Verifying polling completes in reasonable time")
+			// Should complete in less than 1 second for 50 fields
+			Expect(duration).To(BeNumerically("<", time.Second))
+
+			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
+		})
+
+		It("Should handle empty data in ConfigMap", func() {
+			cmName := fmt.Sprintf("test-cm-%d", time.Now().UnixNano())
+
+			By("Creating a ConfigMap with no data")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: namespace,
+				},
+				Data: map[string]string{},
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			By("Polling for a non-existent field")
+			ref := triggersv1alpha.ResourceReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       cmName,
+				Namespace:  namespace,
+				Fields:     []string{"data.missing"},
+			}
+
+			status, err := poller.Poll(ctx, ref)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status.Fields).To(BeEmpty())
+
+			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
+		})
+
+		It("Should handle wildcard on resource with no data", func() {
+			cmName := fmt.Sprintf("test-cm-%d", time.Now().UnixNano())
+
+			By("Creating a ConfigMap with no data")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: namespace,
+				},
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			By("Polling with wildcard")
+			ref := triggersv1alpha.ResourceReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       cmName,
+				Namespace:  namespace,
+				Fields:     []string{"*"},
+			}
+
+			status, err := poller.Poll(ctx, ref)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status.Fields).To(HaveLen(1))
+			Expect(status.Fields[0].Field).To(Equal("*"))
+			Expect(status.Fields[0].LastHash).NotTo(BeEmpty())
+
+			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
+		})
 	})
 })
