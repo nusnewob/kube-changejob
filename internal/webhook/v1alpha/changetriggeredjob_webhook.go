@@ -27,12 +27,13 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
-	controller "github.com/nusnewob/kube-changejob/internal/controller"
+	"github.com/nusnewob/kube-changejob/internal/controller"
 )
 
 // nolint:unused
@@ -44,6 +45,7 @@ func SetupChangeTriggeredJobWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).For(&triggersv1alpha.ChangeTriggeredJob{}).
 		WithValidator(&ChangeTriggeredJobCustomValidator{
 			Mapper: mgr.GetRESTMapper(),
+			Client: mgr.GetClient(),
 		}).
 		WithDefaulter(&ChangeTriggeredJobCustomDefaulter{
 			DefaultCooldown:        DefaultValues.DefaultCooldown,
@@ -120,6 +122,7 @@ func (d *ChangeTriggeredJobCustomDefaulter) Default(ctx context.Context, obj run
 type ChangeTriggeredJobCustomValidator struct {
 	Triggers []triggersv1alpha.ResourceReference
 	Mapper   meta.RESTMapper
+	Client   client.Client
 }
 
 var _ webhook.CustomValidator = &ChangeTriggeredJobCustomValidator{}
@@ -170,6 +173,14 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateCreate(ctx context.Context, 
 			field.NewPath("spec").Child("history"),
 			*changetriggeredjob.Spec.History,
 			"must be >= 1",
+		)
+	}
+
+	if err := controller.ValidateJobTemplate(ctx, v.Client, changetriggeredjob.Namespace, changetriggeredjob.Spec.JobTemplate); err != nil {
+		return nil, field.Invalid(
+			field.NewPath("spec").Child("jobTemplate"),
+			"<invalid>",
+			err.Error(),
 		)
 	}
 

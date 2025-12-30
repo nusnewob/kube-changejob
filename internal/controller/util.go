@@ -75,12 +75,15 @@ func (r *ChangeTriggeredJobReconciler) triggerJob(ctx context.Context, changeJob
 	}
 
 	log.Info("Job created", "job", job.Name)
-	log.V(1).Info("Job created", "job", job)
 	return job, nil
 }
 
 // Poll fetches the resource, extracts fields, and hashes them
 func (p *Poller) Poll(ctx context.Context, ref triggersv1alpha.ResourceReference) (triggersv1alpha.ResourceReferenceStatus, error) {
+	if _, err := ValidateGVK(ctx, p.Client.RESTMapper(), ref.APIVersion, ref.Kind, ref.Namespace); err != nil {
+		return triggersv1alpha.ResourceReferenceStatus{}, err
+	}
+
 	obj := &unstructured.Unstructured{}
 	obj.SetAPIVersion(ref.APIVersion)
 	obj.SetKind(ref.Kind)
@@ -250,15 +253,41 @@ func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJ
 // Get a list of owned Jobs
 func (r *ChangeTriggeredJobReconciler) listOwnedJobs(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) ([]batchv1.Job, error) {
 	var jobs batchv1.JobList
-	if err := r.List(ctx, &jobs, client.InNamespace(changeJob.Namespace), client.MatchingLabels{"changejob.dev/owner": changeJob.Name}); err != nil {
-		return nil, err
+
+	// Try to use field selector first (works in production with field indexer)
+	err := r.List(ctx, &jobs, client.InNamespace(changeJob.Namespace), client.MatchingFields{"metadata.ownerReferences.uid": string(changeJob.UID)})
+	if err != nil {
+		// If field selector not supported (e.g., in test environments), fall back to client-side filtering
+		if err := r.List(ctx, &jobs, client.InNamespace(changeJob.Namespace), client.MatchingLabels{"changejob.dev/owner": changeJob.Name}); err != nil {
+			return nil, fmt.Errorf("unable to list jobs: %w", err)
+		}
+
+		// Filter client-side by owner reference UID
+		var ownedJobs []batchv1.Job
+		for _, job := range jobs.Items {
+			for _, ref := range job.GetOwnerReferences() {
+				if ref.UID == changeJob.UID {
+					ownedJobs = append(ownedJobs, job)
+					break
+				}
+			}
+		}
+		jobs.Items = ownedJobs
 	}
 
-	sort.Slice(jobs.Items, func(i, j int) bool {
-		return jobs.Items[i].CreationTimestamp.After(jobs.Items[j].CreationTimestamp.Time)
+	// Filter out jobs that are being deleted (have DeletionTimestamp set)
+	var activeJobs []batchv1.Job
+	for _, job := range jobs.Items {
+		if job.DeletionTimestamp == nil {
+			activeJobs = append(activeJobs, job)
+		}
+	}
+
+	sort.Slice(activeJobs, func(i, j int) bool {
+		return activeJobs[i].CreationTimestamp.After(activeJobs[j].CreationTimestamp.Time)
 	})
 
-	return jobs.Items, nil
+	return activeJobs, nil
 }
 
 // ValidateGVK validates the GroupVersionKind for a given APIVersion and Kind.
@@ -271,7 +300,7 @@ func ValidateGVK(ctx context.Context, mapper meta.RESTMapper, apiVersion string,
 	// Find resource for Kind
 	mapping, err := mapper.RESTMapping(schema.GroupKind{Group: gv.Group, Kind: kind}, gv.Version)
 	if err != nil {
-		return nil, fmt.Errorf("unknown kind %q in apiVersion %q", kind, apiVersion)
+		return nil, fmt.Errorf("unknown kind %q in apiVersion %q: %w", kind, apiVersion, err)
 	}
 
 	if mapping.Scope.Name() == meta.RESTScopeNameNamespace && namespace == "" {
@@ -293,4 +322,20 @@ func HashObject(obj map[string]any) (string, error) {
 
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// Validates JobTemplate
+func ValidateJobTemplate(ctx context.Context, c client.Client, namespace string, jobTemplate batchv1.JobTemplateSpec) error {
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "validate-jobtemplate-",
+			Namespace:    namespace,
+		},
+		Spec: jobTemplate.Spec,
+	}
+
+	if err := c.Create(ctx, job, client.DryRunAll); err != nil {
+		return err
+	}
+	return nil
 }
