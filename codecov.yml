@@ -7,3 +7,29 @@ coverage:
       cmd:
         paths:
           - cmd/**/*.go
+flags:
+  controller:
+    paths:
+      - internal/**/*.go
+  cmd:
+    paths:
+      - cmd/**/*.go
+component_management:
+  individual_components:
+    - name: controller
+      component_id: controller
+      paths:
+        - internal/controller/**/*.go
+        - internal/config/**/*.go
+    - name: webhook
+      component_id: webhook
+      paths:
+        - internal/webhook/**/*.go
+    - name: cmd
+      component_id: cmd
+      paths:
+        - cmd/**/*.go
+    - name: crd
+      component_id: crd
+      paths:
+        - api/**/*.go
