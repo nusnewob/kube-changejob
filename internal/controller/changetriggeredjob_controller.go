@@ -112,6 +112,12 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 				}
 			}
 		}
+	} else {
+		// Always update status
+		if err := r.updateStatus(ctx, &changeJob, updatedStatuses); err != nil {
+			log.Error(err, "unable to update status")
+			return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
+		}
 	}
 
 	// Always requeue to keep polling
