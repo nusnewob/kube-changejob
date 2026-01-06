@@ -176,6 +176,14 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateCreate(ctx context.Context, 
 		)
 	}
 
+	if changetriggeredjob.Spec.Cooldown != nil && changetriggeredjob.Spec.Cooldown.Duration < 0 {
+		return nil, field.Invalid(
+			field.NewPath("spec").Child("cooldown"),
+			*changetriggeredjob.Spec.Cooldown,
+			"must be >= 0",
+		)
+	}
+
 	if err := controller.ValidateJobTemplate(ctx, v.Client, changetriggeredjob.Namespace, changetriggeredjob.Spec.JobTemplate); err != nil {
 		return nil, field.Invalid(
 			field.NewPath("spec").Child("jobTemplate"),
