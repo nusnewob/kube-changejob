@@ -325,6 +325,52 @@ var _ = Describe("Poller", func() {
 		})
 	})
 
+	Context("ValidateGVK tests", func() {
+		It("Should validate cluster-scoped resource with namespace should fail", func() {
+			By("Validating Namespace (cluster-scoped) with namespace parameter")
+			_, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "v1", "Namespace", "default")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("cluster-scoped resource"))
+		})
+
+		It("Should validate namespaced resource without namespace should fail", func() {
+			By("Validating ConfigMap (namespaced) without namespace parameter")
+			_, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "v1", "ConfigMap", "")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("namespace is required"))
+		})
+
+		It("Should validate valid cluster-scoped resource", func() {
+			By("Validating Namespace without namespace parameter")
+			gvk, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "v1", "Namespace", "")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(gvk).NotTo(BeNil())
+			Expect(gvk.Kind).To(Equal("Namespace"))
+		})
+
+		It("Should validate valid namespaced resource", func() {
+			By("Validating ConfigMap with namespace parameter")
+			gvk, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "v1", "ConfigMap", "default")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(gvk).NotTo(BeNil())
+			Expect(gvk.Kind).To(Equal("ConfigMap"))
+		})
+
+		It("Should fail for invalid APIVersion", func() {
+			By("Validating with malformed APIVersion")
+			_, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "invalid//version", "ConfigMap", "default")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("invalid apiVersion"))
+		})
+
+		It("Should fail for unknown kind", func() {
+			By("Validating with non-existent Kind")
+			_, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "v1", "NonExistentKind", "default")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("unknown kind"))
+		})
+	})
+
 	Context("Edge cases and robustness", func() {
 		It("Should detect when a watched field is deleted from a resource", func() {
 			cmName := fmt.Sprintf("test-cm-%d", time.Now().UnixNano())
@@ -469,6 +515,148 @@ var _ = Describe("Poller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(status.Fields).To(HaveLen(1))
 			Expect(status.Fields[0].Field).To(Equal("*"))
+			Expect(status.Fields[0].LastHash).NotTo(BeEmpty())
+
+			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
+		})
+
+		It("Should handle polling non-existent resource", func() {
+			By("Polling a resource that doesn't exist")
+			ref := triggersv1alpha.ResourceReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       "non-existent-cm",
+				Namespace:  namespace,
+			}
+
+			_, err := poller.Poll(ctx, ref)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Should handle polling with invalid GVK", func() {
+			By("Polling with invalid APIVersion")
+			ref := triggersv1alpha.ResourceReference{
+				APIVersion: "invalid//version",
+				Kind:       "ConfigMap",
+				Name:       "test-cm",
+				Namespace:  namespace,
+			}
+
+			_, err := poller.Poll(ctx, ref)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Should handle polling cluster-scoped resource incorrectly", func() {
+			By("Polling Namespace with namespace parameter")
+			ref := triggersv1alpha.ResourceReference{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "default",
+				Namespace:  "default", // Should not have namespace for cluster-scoped
+			}
+
+			_, err := poller.Poll(ctx, ref)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Should handle complex nested field paths", func() {
+			cmName := fmt.Sprintf("test-cm-%d", time.Now().UnixNano())
+
+			By("Creating a ConfigMap with nested-like keys")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: namespace,
+				},
+				Data: map[string]string{
+					"nested.key": "value",
+				},
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			By("Polling with nested field path")
+			ref := triggersv1alpha.ResourceReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       cmName,
+				Namespace:  namespace,
+				Fields:     []string{"data.nested.key"}, // This won't match because key is "nested.key" not nested path
+			}
+
+			status, err := poller.Poll(ctx, ref)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status.Fields).To(BeEmpty()) // No match for this path
+
+			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
+		})
+
+		It("Should handle mixed wildcard and specific fields", func() {
+			cmName := fmt.Sprintf("test-cm-%d", time.Now().UnixNano())
+
+			By("Creating a ConfigMap")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: namespace,
+				},
+				Data: map[string]string{
+					"key1": "value1",
+					"key2": "value2",
+				},
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			By("Polling with both wildcard and specific field")
+			ref := triggersv1alpha.ResourceReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       cmName,
+				Namespace:  namespace,
+				Fields:     []string{"*", "data.key1"},
+			}
+
+			status, err := poller.Poll(ctx, ref)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status.Fields).To(HaveLen(2))
+
+			By("Verifying both fields are present")
+			fieldMap := make(map[string]string)
+			for _, f := range status.Fields {
+				fieldMap[f.Field] = f.LastHash
+			}
+			Expect(fieldMap).To(HaveKey("*"))
+			Expect(fieldMap).To(HaveKey("data.key1"))
+
+			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
+		})
+
+		It("Should handle special characters in field values", func() {
+			cmName := fmt.Sprintf("test-cm-%d", time.Now().UnixNano())
+
+			By("Creating a ConfigMap with special characters")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: namespace,
+				},
+				Data: map[string]string{
+					"key": `{"json": "value", "number": 123}`,
+				},
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			By("Polling the field")
+			ref := triggersv1alpha.ResourceReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       cmName,
+				Namespace:  namespace,
+				Fields:     []string{"data.key"},
+			}
+
+			status, err := poller.Poll(ctx, ref)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status.Fields).To(HaveLen(1))
 			Expect(status.Fields[0].LastHash).NotTo(BeEmpty())
 
 			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
