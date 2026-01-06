@@ -1042,6 +1042,401 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			By("Expecting no validation error")
 			Expect(err).NotTo(HaveOccurred())
 		})
+
+		It("Should handle defaulter with wrong object type", func() {
+			By("Calling Default with wrong type")
+			wrongObj := &corev1.ConfigMap{}
+			err := defaulter.Default(ctx, wrongObj)
+
+			By("Expecting type error")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("expected an ChangeTriggeredJob object"))
+		})
+
+		It("Should handle validator ValidateCreate with wrong object type", func() {
+			By("Calling ValidateCreate with wrong type")
+			wrongObj := &corev1.ConfigMap{}
+			_, err := validator.ValidateCreate(ctx, wrongObj)
+
+			By("Expecting type error")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("expected a ChangeTriggeredJob object"))
+		})
+
+		It("Should handle validator ValidateUpdate with wrong object type", func() {
+			By("Calling ValidateUpdate with wrong type")
+			wrongObj := &corev1.ConfigMap{}
+			_, err := validator.ValidateUpdate(ctx, oldObj, wrongObj)
+
+			By("Expecting type error")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("expected a ChangeTriggeredJob object"))
+		})
+
+		It("Should handle validator ValidateDelete with wrong object type", func() {
+			By("Calling ValidateDelete with wrong type")
+			wrongObj := &corev1.ConfigMap{}
+			_, err := validator.ValidateDelete(ctx, wrongObj)
+
+			By("Expecting type error")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("expected a ChangeTriggeredJob object"))
+		})
+
+		It("Should deny creation with negative cooldown", func() {
+			By("Creating a ChangeTriggeredJob with negative cooldown")
+			obj.Spec.Cooldown = &metav1.Duration{Duration: -1 * time.Second}
+			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test",
+									Image: "busybox:latest",
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyNever,
+						},
+					},
+				},
+			}
+			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+					Name:       "test-cm",
+					Namespace:  "default",
+				},
+			}
+
+			By("Calling ValidateCreate")
+			_, err := validator.ValidateCreate(ctx, obj)
+
+			By("Expecting validation error")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("must be >= 0"))
+		})
+
+		It("Should admit creation with zero cooldown", func() {
+			By("Creating a ChangeTriggeredJob with zero cooldown")
+			obj.Spec.Cooldown = &metav1.Duration{Duration: 0}
+			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test",
+									Image: "busybox:latest",
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyNever,
+						},
+					},
+				},
+			}
+			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+					Name:       "test-cm",
+					Namespace:  "default",
+				},
+			}
+
+			By("Calling ValidateCreate")
+			_, err := validator.ValidateCreate(ctx, obj)
+
+			By("Expecting no validation error")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Should validate resources with empty fields array", func() {
+			By("Creating a ChangeTriggeredJob with empty fields array")
+			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test",
+									Image: "busybox:latest",
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyNever,
+						},
+					},
+				},
+			}
+			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+					Name:       "test-cm",
+					Namespace:  "default",
+					Fields:     []string{}, // Empty fields array
+				},
+			}
+
+			By("Calling ValidateCreate")
+			_, err := validator.ValidateCreate(ctx, obj)
+
+			By("Expecting no validation error")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Should use custom defaulter values", func() {
+			By("Creating a ChangeTriggeredJob and verifying default defaulter values first")
+			testObj := &triggersv1alpha.ChangeTriggeredJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+			}
+			testObj.Spec.JobTemplate = batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test",
+									Image: "busybox:latest",
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyNever,
+						},
+					},
+				},
+			}
+			testObj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+					Name:       "test-cm",
+				},
+			}
+
+			By("Calling Default with standard defaulter")
+			err := defaulter.Default(ctx, testObj)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying standard defaults are applied")
+			Expect(testObj.Spec.Cooldown.Duration).To(Equal(DefaultValues.DefaultCooldown))
+			Expect(testObj.Spec.Condition).To(HaveValue(Equal(DefaultValues.DefaultCondition)))
+			Expect(testObj.Spec.History).To(HaveValue(Equal(DefaultValues.DefaultHistory)))
+			Expect(testObj.Annotations[DefaultValues.ChangedAtAnnotationKey]).NotTo(BeEmpty())
+		})
+
+		It("Should validate Secret resource type", func() {
+			By("Creating a ChangeTriggeredJob watching a Secret")
+			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test",
+									Image: "busybox:latest",
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyNever,
+						},
+					},
+				},
+			}
+			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "v1",
+					Kind:       "Secret",
+					Name:       "test-secret",
+					Namespace:  "default",
+					Fields:     []string{"data.password"},
+				},
+			}
+
+			By("Calling ValidateCreate")
+			_, err := validator.ValidateCreate(ctx, obj)
+
+			By("Expecting no validation error")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Should validate Pod resource type", func() {
+			By("Creating a ChangeTriggeredJob watching a Pod")
+			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test",
+									Image: "busybox:latest",
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyNever,
+						},
+					},
+				},
+			}
+			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Name:       "test-pod",
+					Namespace:  "default",
+					Fields:     []string{"status.phase"},
+				},
+			}
+
+			By("Calling ValidateCreate")
+			_, err := validator.ValidateCreate(ctx, obj)
+
+			By("Expecting no validation error")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Should validate Service resource type", func() {
+			By("Creating a ChangeTriggeredJob watching a Service")
+			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test",
+									Image: "busybox:latest",
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyNever,
+						},
+					},
+				},
+			}
+			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "v1",
+					Kind:       "Service",
+					Name:       "test-service",
+					Namespace:  "default",
+					Fields:     []string{"spec.type"},
+				},
+			}
+
+			By("Calling ValidateCreate")
+			_, err := validator.ValidateCreate(ctx, obj)
+
+			By("Expecting no validation error")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Should validate Deployment resource type", func() {
+			By("Creating a ChangeTriggeredJob watching a Deployment")
+			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test",
+									Image: "busybox:latest",
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyNever,
+						},
+					},
+				},
+			}
+			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "test-deployment",
+					Namespace:  "default",
+					Fields:     []string{"spec.replicas"},
+				},
+			}
+
+			By("Calling ValidateCreate")
+			_, err := validator.ValidateCreate(ctx, obj)
+
+			By("Expecting no validation error")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Should apply defaults correctly when all fields are nil", func() {
+			By("Creating a ChangeTriggeredJob with all default fields nil")
+			obj.Spec.Cooldown = nil
+			obj.Spec.Condition = nil
+			obj.Spec.History = nil
+			obj.Annotations = nil
+			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test",
+									Image: "busybox:latest",
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyNever,
+						},
+					},
+				},
+			}
+			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+					Name:       "test-cm",
+				},
+			}
+
+			By("Calling Default")
+			err := defaulter.Default(ctx, obj)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying all defaults are applied")
+			Expect(obj.Spec.Cooldown).NotTo(BeNil())
+			Expect(obj.Spec.Condition).NotTo(BeNil())
+			Expect(obj.Spec.History).NotTo(BeNil())
+			Expect(obj.Annotations).NotTo(BeEmpty())
+			Expect(obj.Annotations[DefaultValues.ChangedAtAnnotationKey]).NotTo(BeEmpty())
+		})
+
+		It("Should accept large history values", func() {
+			By("Creating a ChangeTriggeredJob with large history")
+			obj.Spec.History = ptr.To(int32(1000))
+			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test",
+									Image: "busybox:latest",
+								},
+							},
+							RestartPolicy: corev1.RestartPolicyNever,
+						},
+					},
+				},
+			}
+			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
+				{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+					Name:       "test-cm",
+					Namespace:  "default",
+				},
+			}
+
+			By("Calling ValidateCreate")
+			_, err := validator.ValidateCreate(ctx, obj)
+
+			By("Expecting no validation error")
+			Expect(err).NotTo(HaveOccurred())
+		})
 	})
 
 })

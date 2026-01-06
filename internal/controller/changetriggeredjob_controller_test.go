@@ -174,7 +174,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Updating the watched field")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = "updated-value"
+			cm.Data["config"] = "updated-value-1"
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			By("Second reconciliation - first change triggers job")
@@ -1461,6 +1461,251 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result.RequeueAfter).To(Equal(2 * time.Minute))
+		})
+
+		It("Should handle reconciling deleted ChangeTriggeredJob gracefully", func() {
+			By("Attempting to reconcile a non-existent ChangeTriggeredJob")
+			controllerReconciler := &ChangeTriggeredJobReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
+			}
+
+			result, err := controllerReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: "non-existent-ctj", Namespace: ctjNamespace},
+			})
+
+			By("Expecting no error (IgnoreNotFound)")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(config.DefaultControllerConfig.PollInterval))
+		})
+
+		It("Should update status when jobs are created", func() {
+			By("Creating a ChangeTriggeredJob")
+			ctj := &triggersv1alpha.ChangeTriggeredJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      ctjName,
+					Namespace: ctjNamespace,
+				},
+				Spec: triggersv1alpha.ChangeTriggeredJobSpec{
+					Resources: []triggersv1alpha.ResourceReference{
+						{
+							APIVersion: "v1",
+							Kind:       "ConfigMap",
+							Name:       cmName,
+							Namespace:  ctjNamespace,
+							Fields:     []string{"data.config"},
+						},
+					},
+					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
+					Cooldown:  &metav1.Duration{Duration: 1 * time.Second},
+					JobTemplate: batchv1.JobTemplateSpec{
+						Spec: batchv1.JobSpec{
+							Template: corev1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									RestartPolicy: corev1.RestartPolicyNever,
+									Containers: []corev1.Container{
+										{
+											Name:  "test-container",
+											Image: "busybox",
+											Command: []string{
+												"echo",
+												"hello world",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ctj)).Should(Succeed())
+
+			By("Creating a ConfigMap")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: ctjNamespace,
+				},
+				Data: map[string]string{
+					"config": "initial-value",
+				},
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			controllerReconciler := &ChangeTriggeredJobReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
+			}
+
+			By("Initial reconciliation establishes baseline")
+			_, err := controllerReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying resource hashes are initialized")
+			updatedCtj := &triggersv1alpha.ChangeTriggeredJob{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ctjName, Namespace: ctjNamespace}, updatedCtj)).Should(Succeed())
+			Expect(updatedCtj.Status.ResourceHashes).NotTo(BeEmpty())
+
+			By("Triggering a change to create a job")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
+			cm.Data["config"] = "updated-value"
+			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
+
+			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying a job was created")
+			Eventually(func() int {
+				jobList := &batchv1.JobList{}
+				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace)); err != nil {
+					return 0
+				}
+				return len(jobList.Items)
+			}, time.Second*5, time.Millisecond*500).Should(Equal(1))
+		})
+
+		It("Should handle errors during pollResources gracefully", func() {
+			By("Creating a ChangeTriggeredJob with a namespace-scoped resource without namespace")
+			ctj := &triggersv1alpha.ChangeTriggeredJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      ctjName,
+					Namespace: ctjNamespace,
+				},
+				Spec: triggersv1alpha.ChangeTriggeredJobSpec{
+					Resources: []triggersv1alpha.ResourceReference{
+						{
+							APIVersion: "v1",
+							Kind:       "ConfigMap",
+							Name:       "test-cm",
+							// Missing namespace for namespaced resource
+						},
+					},
+					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
+					Cooldown:  &metav1.Duration{Duration: 1 * time.Second},
+					JobTemplate: batchv1.JobTemplateSpec{
+						Spec: batchv1.JobSpec{
+							Template: corev1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									RestartPolicy: corev1.RestartPolicyNever,
+									Containers: []corev1.Container{
+										{
+											Name:  "test-container",
+											Image: "busybox",
+											Command: []string{
+												"echo",
+												"hello world",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ctj)).Should(Succeed())
+
+			controllerReconciler := &ChangeTriggeredJobReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
+			}
+
+			By("Reconciling should return an error")
+			_, err := controllerReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Should handle errors when listing owned jobs fails", func() {
+			By("Creating a ChangeTriggeredJob")
+			ctj := &triggersv1alpha.ChangeTriggeredJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      ctjName,
+					Namespace: ctjNamespace,
+				},
+				Spec: triggersv1alpha.ChangeTriggeredJobSpec{
+					Resources: []triggersv1alpha.ResourceReference{
+						{
+							APIVersion: "v1",
+							Kind:       "ConfigMap",
+							Name:       cmName,
+							Namespace:  ctjNamespace,
+							Fields:     []string{"data.config"},
+						},
+					},
+					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
+					Cooldown:  &metav1.Duration{Duration: 1 * time.Second},
+					History:   ptr.To[int32](1),
+					JobTemplate: batchv1.JobTemplateSpec{
+						Spec: batchv1.JobSpec{
+							Template: corev1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									RestartPolicy: corev1.RestartPolicyNever,
+									Containers: []corev1.Container{
+										{
+											Name:  "test-container",
+											Image: "busybox",
+											Command: []string{
+												"echo",
+												"hello world",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ctj)).Should(Succeed())
+
+			By("Creating a ConfigMap")
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cmName,
+					Namespace: ctjNamespace,
+				},
+				Data: map[string]string{
+					"config": "initial-value",
+				},
+			}
+			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
+
+			controllerReconciler := &ChangeTriggeredJobReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
+			}
+
+			By("Initial reconciliation")
+			_, err := controllerReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Triggering a change to create a job")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
+			cm.Data["config"] = "updated-value"
+			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
+
+			By("Second reconciliation should succeed even if listOwnedJobs encounters issues during cleanup")
+			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
 		})
 	})
 })
