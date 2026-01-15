@@ -9,8 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  test-e2e:
-    name: Run on Ubuntu
+  test-chart:
     runs-on: ubuntu-latest
     steps:
       - name: Clone the code
@@ -22,13 +21,9 @@ jobs:
           go-version-file: go.mod
 
       - name: Install the latest version of kind
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-$(go env GOARCH)
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
-
-      - name: Verify kind installation
-        run: kind version
+        uses: helm/kind-action@v1
+        with:
+          install_only: true
 
       - name: Create kind cluster
         run: kind create cluster
@@ -40,15 +35,10 @@ jobs:
           kind load docker-image kube-changejob:v0.1.0
 
       - name: Install Helm
-        run: |
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-      - name: Verify Helm installation
-        run: helm version
+        uses: Azure/setup-helm@v4.3.1
 
       - name: Lint Helm Chart
-        run: |
-          helm lint ./dist/chart
+        run: helm lint --strict ./dist/chart
 
       - name: Install cert-manager via Helm (wait for readiness)
         run: |
@@ -69,9 +59,7 @@ jobs:
       #          helm install prometheus-crds prometheus-community/prometheus-operator-crds
 
       - name: Install Helm chart for project
-        run: |
-          helm install my-release ./dist/chart --create-namespace --namespace kube-changejob-system
+        run: helm install my-release ./dist/chart --create-namespace --namespace kube-changejob-system
 
       - name: Check Helm release status
-        run: |
-          helm status my-release --namespace kube-changejob-system
+        run: helm status my-release --namespace kube-changejob-system
