@@ -223,6 +223,76 @@ jobs:
           git tag -f latest
           git push origin latest --force
 
+      - name: Update CHANGELOG.md
+        run: |
+          # Get previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          CURRENT_DATE=$(date +%Y-%m-%d)
+
+          # Generate changelog entry
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "First release - including all commits"
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "Generating changelog from ${PREVIOUS_TAG} to ${{ steps.version.outputs.version }}"
+            COMMITS=$(git log ${PREVIOUS_TAG}..${{ steps.version.outputs.version }} --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          # Create new changelog entry
+          NEW_ENTRY="## [${{ steps.version.outputs.version }}] - ${CURRENT_DATE}
+
+          ### Changes
+
+          ${COMMITS}
+
+          "
+
+          # Insert the new entry after the [Unreleased] section
+          # Use a temporary file to avoid issues with sed
+          awk -v new_entry="$NEW_ENTRY" '
+            /^## \[Unreleased\]/ {
+              print
+              # Skip lines until we find an empty line or next section
+              while (getline > 0) {
+                print
+                if (/^$/ || /^---/) break
+              }
+              print new_entry
+              next
+            }
+            { print }
+          ' CHANGELOG.md > CHANGELOG.md.tmp
+
+          mv CHANGELOG.md.tmp CHANGELOG.md
+
+          # Update the version comparison links at the bottom
+          if [ -n "$PREVIOUS_TAG" ]; then
+            # Add new version comparison link
+            echo "" >> CHANGELOG.md
+            echo "[${{ steps.version.outputs.version }}]: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${{ steps.version.outputs.version }}" >> CHANGELOG.md
+          else
+            echo "" >> CHANGELOG.md
+            echo "[${{ steps.version.outputs.version }}]: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}" >> CHANGELOG.md
+          fi
+
+      - name: Commit and push CHANGELOG.md
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if there are changes
+          if git diff --quiet CHANGELOG.md; then
+            echo "No changes to CHANGELOG.md"
+            exit 0
+          fi
+
+          # Commit and push to main branch
+          git add CHANGELOG.md
+          git commit -m "chore: update CHANGELOG.md for release ${{ steps.version.outputs.version }}"
+
+          # Push to main branch (not the tag)
+          git push origin HEAD:main
+
   update-docs:
     needs: build-and-release
     runs-on: ubuntu-latest
