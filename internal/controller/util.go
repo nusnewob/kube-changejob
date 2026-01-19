@@ -23,12 +23,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"slices"
 	"sort"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/jsonpath"
 
 	"github.com/cyberphone/json-canonicalization/go/src/webpki.org/jsoncanonicalizer"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -116,15 +116,27 @@ func (p *Poller) Poll(ctx context.Context, ref triggersv1alpha.ResourceReference
 			continue
 		}
 
-		val, found, err := unstructured.NestedFieldNoCopy(
-			obj.Object,
-			strings.Split(field, ".")...,
-		)
-		if err != nil {
-			return triggersv1alpha.ResourceReferenceStatus{}, err
+		// Use a JSONPath parser to find the field
+		j := jsonpath.New("field")
+		if err := j.Parse(fmt.Sprintf("{.%s}", field)); err != nil {
+			return triggersv1alpha.ResourceReferenceStatus{}, fmt.Errorf("failed to parse jsonpath %q: %w", field, err)
 		}
-		if found {
-			hash, err := HashObject(map[string]any{field: val})
+		results, err := j.FindResults(obj.Object)
+		// Ignore not found errors
+		if err != nil && !strings.Contains(err.Error(), "is not found") {
+			return triggersv1alpha.ResourceReferenceStatus{}, fmt.Errorf("failed to find results for jsonpath %q: %w", field, err)
+		}
+
+		// Convert results to a list of interfaces for consistent hashing
+		var values []any
+		for _, result := range results {
+			for _, v := range result {
+				values = append(values, v.Interface())
+			}
+		}
+
+		if len(values) > 0 {
+			hash, err := HashObject(map[string]any{field: values})
 			if err != nil {
 				return triggersv1alpha.ResourceReferenceStatus{}, err
 			}
@@ -149,8 +161,14 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 	poller := Poller{Client: r.Client}
 
 	updated := make([]triggersv1alpha.ResourceReferenceStatus, 0, len(changeJob.Spec.Resources))
-	changeCount := 0
-	fieldCount := 0
+	resourcesWithChanges := 0
+
+	// Build a map of old statuses for efficient lookup
+	oldStatuses := make(map[string]triggersv1alpha.ResourceReferenceStatus)
+	for _, s := range changeJob.Status.ResourceHashes {
+		key := fmt.Sprintf("%s/%s/%s/%s", s.APIVersion, s.Kind, s.Namespace, s.Name)
+		oldStatuses[key] = s
+	}
 
 	for _, ref := range changeJob.Spec.Resources {
 		result, err := poller.Poll(ctx, ref)
@@ -162,63 +180,66 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 		updated = append(updated, result)
 
 		// Find existing hash for comparison
-		lastIndexFound := slices.ContainsFunc(changeJob.Status.ResourceHashes, func(status triggersv1alpha.ResourceReferenceStatus) bool {
-			return status.APIVersion == ref.APIVersion && status.Kind == ref.Kind && status.Namespace == ref.Namespace && status.Name == ref.Name
-		})
-		if !lastIndexFound {
+		key := fmt.Sprintf("%s/%s/%s/%s", ref.APIVersion, ref.Kind, ref.Namespace, ref.Name)
+		last, ok := oldStatuses[key]
+		if !ok {
 			// First time seeing this resource - no comparison needed, just track it
-			log.V(1).Info("First poll of resource, establishing baseline", "APIVersion", ref.APIVersion, "Kind", ref.Kind, "Namespace", ref.Namespace, "Name", ref.Name)
 			continue
 		}
-		lastIndex := slices.IndexFunc(changeJob.Status.ResourceHashes, func(status triggersv1alpha.ResourceReferenceStatus) bool {
-			return status.APIVersion == ref.APIVersion && status.Kind == ref.Kind && status.Namespace == ref.Namespace && status.Name == ref.Name
-		})
-		last := changeJob.Status.ResourceHashes[lastIndex]
 
 		// Compare fields to detect changes
-		for _, field := range last.Fields {
-			fieldCount++
-
-			updatedFieldFound := slices.ContainsFunc(result.Fields, func(resultField triggersv1alpha.ResourceFieldHash) bool {
-				return resultField.Field == field.Field
-			})
-			if !updatedFieldFound {
-				continue // Field no longer exists, skip it - this could be considered a change
+		resourceHasChanged := false
+		if len(last.Fields) != len(result.Fields) {
+			resourceHasChanged = true
+		} else {
+			// Build maps for efficient field comparison
+			lastFields := make(map[string]string, len(last.Fields))
+			for _, f := range last.Fields {
+				lastFields[f.Field] = f.LastHash
 			}
-			updatedFieldIndex := slices.IndexFunc(result.Fields, func(resultField triggersv1alpha.ResourceFieldHash) bool {
-				return resultField.Field == field.Field
-			})
 
-			if field.LastHash != result.Fields[updatedFieldIndex].LastHash {
-				changeCount++
-				log.V(1).Info("Resource field changed", "APIVersion", ref.APIVersion, "Kind", ref.Kind, "Namespace", ref.Namespace, "Name", ref.Name, "Field", field.Field)
+			for _, f := range result.Fields {
+				if lastHash, ok := lastFields[f.Field]; !ok || lastHash != f.LastHash {
+					resourceHasChanged = true
+					break
+				}
 			}
+		}
+
+		if resourceHasChanged {
+			resourcesWithChanges++
+			log.V(1).Info("Resource changed", "APIVersion", ref.APIVersion, "Kind", ref.Kind, "Namespace", ref.Namespace, "Name", ref.Name)
 		}
 	}
 
-	changed := false
-	if changeCount > 0 {
-		log.V(1).Info(fmt.Sprintf("%d of %d resources changed", changeCount, len(changeJob.Spec.Resources)))
+	triggered := false
+	if changeJob.Status.ResourceHashes != nil && resourcesWithChanges > 0 {
+		log.V(1).Info(fmt.Sprintf("%d of %d watched resources changed", resourcesWithChanges, len(changeJob.Spec.Resources)))
 		switch *changeJob.Spec.Condition {
 		case triggersv1alpha.TriggerConditionAny:
-			changed = true
-			log.V(1).Info("Trigger condition satisfied")
+			triggered = true
+			log.V(1).Info("Trigger condition 'Any' satisfied")
 		case triggersv1alpha.TriggerConditionAll:
-			if changeCount == fieldCount {
-				changed = true
-				log.V(1).Info("Trigger condition satisfied")
+			if resourcesWithChanges == len(changeJob.Spec.Resources) {
+				triggered = true
+				log.V(1).Info("Trigger condition 'All' satisfied")
 			} else {
-				log.V(1).Info("Trigger condition not satisfied")
+				log.V(1).Info("Trigger condition 'All' not satisfied")
 			}
 		}
 	}
 
-	return changed, updated, nil
+	return triggered, updated, nil
 }
 
 // Update Status
-func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob, status []triggersv1alpha.ResourceReferenceStatus) error {
-	changeJob.Status.ResourceHashes = status
+func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJob *triggersv1alpha.ChangeTriggeredJob) error {
+	// Use a fresh copy to avoid conflicts
+	latest := &triggersv1alpha.ChangeTriggeredJob{}
+	if err := r.Get(ctx, client.ObjectKey{Namespace: changeJob.Namespace, Name: changeJob.Name}, latest); err != nil {
+		return err
+	}
+	latest.Status = changeJob.Status
 
 	histories, err := r.listOwnedJobs(ctx, changeJob)
 	if err != nil {
@@ -227,24 +248,29 @@ func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJ
 
 	if len(histories) > 0 {
 		// Use current time if StartTime is not set yet
-		changeJob.Status.LastJobName = histories[0].Name
+		latest.Status.LastJobName = histories[0].Name
 		if histories[0].Status.StartTime != nil {
-			changeJob.Status.LastTriggeredTime = histories[0].Status.StartTime
+			latest.Status.LastTriggeredTime = histories[0].Status.StartTime
 		} else {
-			changeJob.Status.LastTriggeredTime = ptr.To(metav1.Now())
+			latest.Status.LastTriggeredTime = ptr.To(metav1.Now())
 		}
 
 		// Update LastJobStatus status
-		if histories[0].Status.Failed != 0 {
-			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateFailed
-		} else if histories[0].Status.Active != 0 {
-			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateActive
-		} else if histories[0].Status.Succeeded != 0 {
-			changeJob.Status.LastJobStatus = triggersv1alpha.JobStateSucceeded
+		if histories[0].Status.Failed > 0 {
+			latest.Status.LastJobStatus = triggersv1alpha.JobStateFailed
+		} else if histories[0].Status.Active > 0 {
+			latest.Status.LastJobStatus = triggersv1alpha.JobStateActive
+		} else if histories[0].Status.Succeeded > 0 {
+			latest.Status.LastJobStatus = triggersv1alpha.JobStateSucceeded
 		}
+	} else {
+		// No jobs running, clear the status
+		latest.Status.LastJobName = ""
+		latest.Status.LastJobStatus = ""
+		latest.Status.LastTriggeredTime = nil
 	}
 
-	if err := r.Status().Update(ctx, changeJob); err != nil {
+	if err := r.Status().Update(ctx, latest); err != nil {
 		return fmt.Errorf("unable to update job status: %w", err)
 	}
 
@@ -315,7 +341,7 @@ func ValidateGVK(ctx context.Context, mapper meta.RESTMapper, apiVersion string,
 }
 
 // hashObject produces a stable hash for arbitrary JSON data
-func HashObject(obj map[string]any) (string, error) {
+func HashObject(obj any) (string, error) {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		return "", err
