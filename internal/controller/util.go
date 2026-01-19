@@ -166,8 +166,13 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 	// Build a map of old statuses for efficient lookup
 	oldStatuses := make(map[string]triggersv1alpha.ResourceReferenceStatus)
 	for _, s := range changeJob.Status.ResourceHashes {
-		key := fmt.Sprintf("%s/%s/%s/%s", s.APIVersion, s.Kind, s.Namespace, s.Name)
-		oldStatuses[key] = s
+		if s.Namespace != "" {
+			key := fmt.Sprintf("%s/%s/%s/%s", s.APIVersion, s.Kind, s.Namespace, s.Name)
+			oldStatuses[key] = s
+		} else {
+			key := fmt.Sprintf("%s/%s/%s", s.APIVersion, s.Kind, s.Name)
+			oldStatuses[key] = s
+		}
 	}
 
 	for _, ref := range changeJob.Spec.Resources {
@@ -180,7 +185,12 @@ func (r *ChangeTriggeredJobReconciler) pollResources(ctx context.Context, change
 		updated = append(updated, result)
 
 		// Find existing hash for comparison
-		key := fmt.Sprintf("%s/%s/%s/%s", ref.APIVersion, ref.Kind, ref.Namespace, ref.Name)
+		key := ""
+		if ref.Namespace != "" {
+			key = fmt.Sprintf("%s/%s/%s/%s", ref.APIVersion, ref.Kind, ref.Namespace, ref.Name)
+		} else {
+			key = fmt.Sprintf("%s/%s/%s", ref.APIVersion, ref.Kind, ref.Name)
+		}
 		last, ok := oldStatuses[key]
 		if !ok {
 			// First time seeing this resource - no comparison needed, just track it
