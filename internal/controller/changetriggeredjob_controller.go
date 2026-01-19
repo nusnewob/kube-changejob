@@ -64,22 +64,27 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, client.IgnoreNotFound(err)
 	}
 
+	// Validate JobTemplate
+	if err := ValidateJobTemplate(ctx, r.Client, changeJob.Namespace, changeJob.Spec.JobTemplate); err != nil {
+		log.Error(err, "invalid job template")
+		// Don't requeue, as this is a configuration error
+		return ctrl.Result{}, nil
+	}
+
 	changed, updatedStatuses, err := r.pollResources(ctx, &changeJob)
 	if err != nil {
 		log.Error(err, "unable to poll resources")
 		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 	}
 
-	// Initialize resource hashes on first run (no job triggered)
-	if changeJob.Status.ResourceHashes == nil {
-		changeJob.Status.ResourceHashes = updatedStatuses
-		if err := r.Status().Update(ctx, &changeJob); err != nil {
-			log.Error(err, "unable to update resource hashes")
-			return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
-		}
-		log.V(1).Info("Initialized resource hashes", "count", len(updatedStatuses))
-		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, nil
+	// Initialize resource hashes on first run or update status
+	isFirstPoll := changeJob.Status.ResourceHashes == nil
+	if isFirstPoll {
+		log.V(1).Info("First poll of resource, establishing baseline", "name", changeJob.Name)
 	}
+
+	// Always update hashes
+	changeJob.Status.ResourceHashes = updatedStatuses
 
 	if changed {
 		// Check if we should trigger (first time or after cooldown)
@@ -89,34 +94,29 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 				log.Error(err, "unable to trigger job")
 				return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
 			}
-
-			// Update status
-			if err := r.updateStatus(ctx, &changeJob, updatedStatuses); err != nil {
-				log.Error(err, "unable to update status")
-				return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
-			}
-
-			// Delete job history > changeJob.Spec.History
-			histories, err := r.listOwnedJobs(ctx, &changeJob)
-			if err != nil {
-				log.Error(err, "unable to get job histories")
-			}
-
-			if len(histories) > int(*changeJob.Spec.History) {
-				log.Info("Cleaning up old jobs", "total", len(histories), "limit", *changeJob.Spec.History, "toDelete", len(histories)-int(*changeJob.Spec.History))
-				for _, history := range histories[*changeJob.Spec.History:] {
-					if err := r.Delete(ctx, &history); err != nil {
-						log.Error(err, "Failed to delete old job", "job", history.Name)
-					}
-					log.V(1).Info("Deleted old job", "job", history.Name)
-				}
-			}
 		}
-	} else {
-		// Always update status
-		if err := r.updateStatus(ctx, &changeJob, updatedStatuses); err != nil {
-			log.Error(err, "unable to update status")
-			return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
+	}
+
+	// Always update status, including job history and latest job info
+	if err := r.updateStatus(ctx, &changeJob); err != nil {
+		log.Error(err, "unable to update status")
+		return ctrl.Result{RequeueAfter: r.Config.PollInterval}, err
+	}
+
+	// Delete old jobs on every reconcile
+	histories, err := r.listOwnedJobs(ctx, &changeJob)
+	if err != nil {
+		log.Error(err, "unable to get job histories")
+		// Continue, as this is non-critical
+	}
+
+	if len(histories) > int(*changeJob.Spec.History) {
+		log.Info("Cleaning up old jobs", "total", len(histories), "limit", *changeJob.Spec.History, "toDelete", len(histories)-int(*changeJob.Spec.History))
+		for _, history := range histories[*changeJob.Spec.History:] {
+			if err := r.Delete(ctx, &history); err != nil {
+				log.Error(err, "Failed to delete old job", "job", history.Name)
+			}
+			log.V(1).Info("Deleted old job", "job", history.Name)
 		}
 	}
 

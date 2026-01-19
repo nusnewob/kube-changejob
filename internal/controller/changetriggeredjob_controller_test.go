@@ -1707,5 +1707,109 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 		})
+
+		It("Should detect changes in cluster-scoped resources like Namespaces", func() {
+			// Use a unique name for the namespace to avoid conflicts
+			namespaceName := fmt.Sprintf("test-ns-%d", time.Now().UnixNano())
+
+			By("Creating a ChangeTriggeredJob to watch a Namespace")
+			ctj := &triggersv1alpha.ChangeTriggeredJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      ctjName,
+					Namespace: ctjNamespace, // The CTJ itself is namespaced
+				},
+				Spec: triggersv1alpha.ChangeTriggeredJobSpec{
+					Resources: []triggersv1alpha.ResourceReference{
+						{
+							APIVersion: "v1",
+							Kind:       "Namespace",
+							Name:       namespaceName,
+							// No Namespace field for cluster-scoped resources
+							Fields: []string{"metadata.labels"},
+						},
+					},
+					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
+					Cooldown:  &metav1.Duration{Duration: 1 * time.Second},
+					JobTemplate: batchv1.JobTemplateSpec{
+						Spec: batchv1.JobSpec{
+							Template: corev1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									RestartPolicy: corev1.RestartPolicyNever,
+									Containers: []corev1.Container{
+										{
+											Name:  "test-container",
+											Image: "busybox",
+											Command: []string{
+												"echo",
+												"cluster resource changed",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ctj)).Should(Succeed())
+
+			By("Creating the watched Namespace")
+			ns := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: namespaceName,
+				},
+			}
+			Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
+
+			// Defer cleanup for the namespace
+			defer func() {
+				Expect(k8sClient.Delete(ctx, ns)).Should(Succeed())
+			}()
+
+			By("First reconciliation - establishes baseline")
+			controllerReconciler := &ChangeTriggeredJobReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: config.DefaultControllerConfig,
+				Log:    logr.New(zap.New(zap.UseDevMode(true)).GetSink()),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying no job was created on initial reconciliation")
+			jobList := &batchv1.JobList{}
+			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
+			Expect(jobList.Items).To(BeEmpty())
+
+			By("Updating the watched Namespace with a new label")
+			Eventually(func() error {
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: namespaceName}, ns); err != nil {
+					return err
+				}
+				if ns.Labels == nil {
+					ns.Labels = make(map[string]string)
+				}
+				ns.Labels["test-label"] = "test-value"
+				return k8sClient.Update(ctx, ns)
+			}, time.Second*5, time.Millisecond*500).Should(Succeed())
+
+			By("Second reconciliation - change should trigger a job")
+			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{Name: ctjName, Namespace: ctjNamespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Verifying a job was created")
+			Eventually(func() int {
+				jobList := &batchv1.JobList{}
+				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName}); err != nil {
+					return 0
+				}
+				return len(jobList.Items)
+			}, time.Second*10, time.Millisecond*500).Should(Equal(1))
+		})
 	})
 })
