@@ -18,18 +18,19 @@ package v1alpha
 
 import (
 	"context"
+<<<<<<< HEAD
+=======
 	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+>>>>>>> tmp-original-27-01-26-16-42
 
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
@@ -42,6 +43,11 @@ var log = logf.Log.WithName("ChangeTriggeredJob-Webhook")
 
 // SetupChangeTriggeredJobWebhookWithManager registers the webhook for ChangeTriggeredJob in the manager.
 func SetupChangeTriggeredJobWebhookWithManager(mgr ctrl.Manager) error {
+<<<<<<< HEAD
+	return ctrl.NewWebhookManagedBy(mgr, &triggersv1alpha.ChangeTriggeredJob{}).
+		WithValidator(&ChangeTriggeredJobCustomValidator{}).
+		WithDefaulter(&ChangeTriggeredJobCustomDefaulter{}).
+=======
 	return ctrl.NewWebhookManagedBy(mgr).For(&triggersv1alpha.ChangeTriggeredJob{}).
 		WithValidator(&ChangeTriggeredJobCustomValidator{
 			Mapper: mgr.GetRESTMapper(),
@@ -53,6 +59,7 @@ func SetupChangeTriggeredJobWebhookWithManager(mgr ctrl.Manager) error {
 			DefaultHistory:         DefaultValues.DefaultHistory,
 			ChangedAtAnnotationKey: DefaultValues.ChangedAtAnnotationKey,
 		}).
+>>>>>>> tmp-original-27-01-26-16-42
 		Complete()
 }
 
@@ -77,9 +84,11 @@ var DefaultValues = ChangeTriggeredJobCustomDefaulter{
 	ChangedAtAnnotationKey: "changetriggeredjobs.triggers.changejob.dev/changed-at",
 }
 
-var _ webhook.CustomDefaulter = &ChangeTriggeredJobCustomDefaulter{}
-
 // Default implements webhook.CustomDefaulter so a webhook will be registered for the Kind ChangeTriggeredJob.
+<<<<<<< HEAD
+func (d *ChangeTriggeredJobCustomDefaulter) Default(_ context.Context, obj *triggersv1alpha.ChangeTriggeredJob) error {
+	changetriggeredjoblog.Info("Defaulting for ChangeTriggeredJob", "name", obj.GetName())
+=======
 func (d *ChangeTriggeredJobCustomDefaulter) Default(ctx context.Context, obj runtime.Object) error {
 	changetriggeredjob, ok := obj.(*triggersv1alpha.ChangeTriggeredJob)
 
@@ -87,6 +96,7 @@ func (d *ChangeTriggeredJobCustomDefaulter) Default(ctx context.Context, obj run
 		return fmt.Errorf("expected an ChangeTriggeredJob object but got %T", obj)
 	}
 	log.Info("Defaulting for ChangeTriggeredJob", "name", changetriggeredjob.GetName())
+>>>>>>> tmp-original-27-01-26-16-42
 
 	// Optional: default cooldown if unset
 	if changetriggeredjob.Spec.Cooldown == nil {
@@ -125,15 +135,18 @@ type ChangeTriggeredJobCustomValidator struct {
 	Client   client.Client
 }
 
-var _ webhook.CustomValidator = &ChangeTriggeredJobCustomValidator{}
-
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type ChangeTriggeredJob.
+<<<<<<< HEAD
+func (v *ChangeTriggeredJobCustomValidator) ValidateCreate(_ context.Context, obj *triggersv1alpha.ChangeTriggeredJob) (admission.Warnings, error) {
+	changetriggeredjoblog.Info("Validation for ChangeTriggeredJob upon creation", "name", obj.GetName())
+=======
 func (v *ChangeTriggeredJobCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	changetriggeredjob, ok := obj.(*triggersv1alpha.ChangeTriggeredJob)
 	if !ok {
 		return nil, fmt.Errorf("expected a ChangeTriggeredJob object but got %T", obj)
 	}
 	log.Info("Validation for ChangeTriggeredJob upon creation", "name", changetriggeredjob.GetName())
+>>>>>>> tmp-original-27-01-26-16-42
 
 	if len(changetriggeredjob.Spec.Resources) == 0 {
 		return nil, field.Invalid(
@@ -196,6 +209,21 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateCreate(ctx context.Context, 
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type ChangeTriggeredJob.
+<<<<<<< HEAD
+func (v *ChangeTriggeredJobCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj *triggersv1alpha.ChangeTriggeredJob) (admission.Warnings, error) {
+	changetriggeredjoblog.Info("Validation for ChangeTriggeredJob upon update", "name", newObj.GetName())
+
+	// TODO(user): fill in your validation logic upon object update.
+
+	return nil, nil
+}
+
+// ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type ChangeTriggeredJob.
+func (v *ChangeTriggeredJobCustomValidator) ValidateDelete(_ context.Context, obj *triggersv1alpha.ChangeTriggeredJob) (admission.Warnings, error) {
+	changetriggeredjoblog.Info("Validation for ChangeTriggeredJob upon deletion", "name", obj.GetName())
+
+	// TODO(user): fill in your validation logic upon object deletion.
+=======
 func (v *ChangeTriggeredJobCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	return v.ValidateCreate(ctx, newObj)
 }
@@ -207,6 +235,7 @@ func (v *ChangeTriggeredJobCustomValidator) ValidateDelete(ctx context.Context, 
 		return nil, fmt.Errorf("expected a ChangeTriggeredJob object but got %T", obj)
 	}
 	log.Info("Validation for ChangeTriggeredJob upon deletion", "name", changetriggeredjob.GetName())
+>>>>>>> tmp-original-27-01-26-16-42
 
 	return nil, nil
 }

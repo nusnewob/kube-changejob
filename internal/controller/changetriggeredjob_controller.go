@@ -56,7 +56,7 @@ var log = logf.Log.WithName("ChangeTriggeredJob")
 // +kubebuilder:rbac:groups="*",resources="*",verbs=get;watch
 
 // For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.22.4/pkg/reconcile
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.23.1/pkg/reconcile
 func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var changeJob triggersv1alpha.ChangeTriggeredJob
 	if err := r.Get(ctx, req.NamespacedName, &changeJob); err != nil {

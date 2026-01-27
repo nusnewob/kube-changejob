@@ -3,13 +3,15 @@ kind: ClusterRoleBinding
 metadata:
     labels:
         app.kubernetes.io/managed-by: {{ .Release.Service }}
-        app.kubernetes.io/name: kube-changejob
-    name: kube-changejob-manager-rolebinding
+        app.kubernetes.io/name: {{ include "kube-changejob.name" . }}
+        helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    name: {{ include "kube-changejob.resourceName" (dict "suffix" "manager-rolebinding" "context" $) }}
 roleRef:
     apiGroup: rbac.authorization.k8s.io
     kind: ClusterRole
-    name: kube-changejob-manager-role
+    name: {{ include "kube-changejob.resourceName" (dict "suffix" "manager-role" "context" $) }}
 subjects:
     - kind: ServiceAccount
-      name: kube-changejob-controller-manager
+      name: {{ include "kube-changejob.resourceName" (dict "suffix" "controller-manager" "context" $) }}
       namespace: {{ .Release.Namespace }}
