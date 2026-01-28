@@ -32,18 +32,15 @@ import (
 )
 
 var (
-<<<<<<< HEAD
 	// managerImage is the manager image to be built and loaded for testing.
 	managerImage = "example.com/kube-changejob:v0.0.1"
 	// shouldCleanupCertManager tracks whether CertManager was installed by this suite.
 	shouldCleanupCertManager = false
-)
 
-// TestE2E runs the e2e test suite to validate the solution in an isolated environment.
-// The default setup requires Kind and CertManager.
-//
-// To skip CertManager installation, set: CERT_MANAGER_INSTALL_SKIP=true
-=======
+	// TestE2E runs the e2e test suite to validate the solution in an isolated environment.
+	// The default setup requires Kind and CertManager.
+	//
+	// To skip CertManager installation, set: CERT_MANAGER_INSTALL_SKIP=true
 	// Optional Environment Variables:
 	// - CERT_MANAGER_INSTALL_SKIP=true: Skips CertManager installation during test setup.
 	// These variables are useful if CertManager is already installed, avoiding
@@ -51,16 +48,11 @@ var (
 	skipCertManagerInstall = os.Getenv("CERT_MANAGER_INSTALL_SKIP") == "true"
 	// isCertManagerAlreadyInstalled will be set true when CertManager CRDs be found on the cluster
 	isCertManagerAlreadyInstalled = false
-
-	// projectImage is the name of the image which will be built and loaded
-	// with the code source changes to be tested.
-	projectImage = "example.com/kube-changejob:v0.0.1"
 )
 
 // TestE2E runs the end-to-end (e2e) test suite for the project. These tests execute in an isolated,
 // temporary environment to validate project changes with the purpose of being used in CI jobs.
 // The default setup requires Kind and builds/loads the Manager Docker image locally.
->>>>>>> tmp-original-27-01-26-16-42
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	_, _ = fmt.Fprintf(GinkgoWriter, "Starting kube-changejob e2e test suite\n")
@@ -73,32 +65,22 @@ var _ = BeforeSuite(func() {
 	_, err := utils.Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to build the manager image")
 
-<<<<<<< HEAD
 	// TODO(user): If you want to change the e2e test vendor from Kind,
 	// ensure the image is built and available, then remove the following block.
 	By("loading the manager image on Kind")
 	err = utils.LoadImageToKindClusterWithName(managerImage)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to load the manager image into Kind")
-=======
-	By("loading the manager(Operator) image on Kind")
-	err = utils.LoadImageToKindClusterWithName(projectImage)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to load the manager(Operator) image into Kind")
->>>>>>> tmp-original-27-01-26-16-42
 
 	setupCertManager()
 })
 
 var _ = AfterSuite(func() {
-<<<<<<< HEAD
-	teardownCertManager()
-=======
 	// Teardown CertManager after the suite if not skipped and if it was not already installed
 	if !skipCertManagerInstall && !isCertManagerAlreadyInstalled {
 		_, _ = fmt.Fprintf(GinkgoWriter, "Uninstalling CertManager...\n")
-		utils.UninstallCertManager()
+		teardownCertManager()
 	}
 	// Cleanup handled in individual test specs
->>>>>>> tmp-original-27-01-26-16-42
 })
 
 // setupCertManager installs CertManager if needed for webhook tests.

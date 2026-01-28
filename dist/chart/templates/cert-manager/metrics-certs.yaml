@@ -11,13 +11,8 @@ metadata:
     namespace: {{ .Release.Namespace }}
 spec:
     dnsNames:
-<<<<<<< HEAD
         - {{ include "kube-changejob.resourceName" (dict "suffix" "controller-manager-metrics-service" "context" .) }}.{{ include "kube-changejob.namespaceName" . }}.svc
         - {{ include "kube-changejob.resourceName" (dict "suffix" "controller-manager-metrics-service" "context" .) }}.{{ include "kube-changejob.namespaceName" . }}.svc.cluster.local
-=======
-        - {{ include "chart.serviceName" (dict "suffix" "controller-manager-metrics-service" "context" .) }}.{{ .Release.Namespace }}.svc
-        - {{ include "chart.serviceName" (dict "suffix" "controller-manager-metrics-service" "context" .) }}.{{ .Release.Namespace }}.svc.cluster.local
->>>>>>> tmp-original-27-01-26-16-42
     issuerRef:
         kind: Issuer
         name: {{ include "kube-changejob.resourceName" (dict "suffix" "selfsigned-issuer" "context" $) }}

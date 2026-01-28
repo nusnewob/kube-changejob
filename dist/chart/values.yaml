@@ -25,28 +25,21 @@ manager:
     # tag: latest
     pullPolicy: IfNotPresent
 
-<<<<<<< HEAD
   ## Arguments
   ##
   args:
     - --leader-elect
-=======
-  # Arguments
-  args: []
->>>>>>> tmp-original-27-01-26-16-42
 
   ## Environment variables
   ##
   env: []
 
-<<<<<<< HEAD
   ## Image pull secrets
   ##
   imagePullSecrets: []
 
   ## Pod-level security settings
   ##
-=======
   # Controller watched resources types, also configures controller RBAC permissions
   # Default allows to watch all resources
   watchResources:
@@ -54,7 +47,6 @@ manager:
       resources: ["*"]
 
   # Pod-level security settings
->>>>>>> tmp-original-27-01-26-16-42
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:
@@ -97,37 +89,24 @@ webhook:
 ## Helper RBAC roles for managing custom resources
 ##
 rbacHelpers:
-<<<<<<< HEAD
   # Install convenience admin/editor/viewer roles for CRDs
-  enable: false
-=======
-  enable: true # Install convenience admin/editor/viewer roles for CRDs
->>>>>>> tmp-original-27-01-26-16-42
+  enable: true
 
 ## Custom Resource Definitions
 ##
 crd:
-<<<<<<< HEAD
   # Install CRDs with the chart
   enable: true
   # Keep CRDs when uninstalling
   keep: true
-=======
-  enable: true # Install CRDs with the chart
-  keep: true # Keep CRDs when uninstalling
->>>>>>> tmp-original-27-01-26-16-42
 
 ## Controller metrics endpoint.
 ## Enable to expose /metrics endpoint with RBAC protection.
 ##
 metrics:
   enable: true
-<<<<<<< HEAD
   # Metrics server port
   port: 8443
-=======
-  port: 8443 # Metrics server port
->>>>>>> tmp-original-27-01-26-16-42
 
 ## Cert-manager integration for TLS certificates.
 ## Required for webhook certificates and metrics endpoint certificates.
@@ -135,7 +114,6 @@ metrics:
 certManager:
   enable: true
 
-<<<<<<< HEAD
 ## Webhook server configuration
 ##
 webhook:
@@ -146,9 +124,5 @@ webhook:
 ## Prometheus ServiceMonitor for metrics scraping.
 ## Requires prometheus-operator to be installed in the cluster.
 ##
-=======
-# Prometheus ServiceMonitor for metrics scraping.
-# Requires prometheus-operator to be installed in the cluster.
->>>>>>> tmp-original-27-01-26-16-42
 prometheus:
   enable: false
