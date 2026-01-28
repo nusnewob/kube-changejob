@@ -128,7 +128,7 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 func (r *ChangeTriggeredJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Index Jobs by their owner UID
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &batchv1.Job{}, "metadata.ownerReferences.uid", func(obj client.Object) []string {
-		var uids []string
+		uids := make([]string, 0, len(obj.GetOwnerReferences()))
 		for _, ref := range obj.GetOwnerReferences() {
 			uids = append(uids, string(ref.UID))
 		}
