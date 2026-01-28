@@ -4,9 +4,11 @@ kind: Service
 metadata:
     labels:
         app.kubernetes.io/managed-by: {{ .Release.Service }}
-        app.kubernetes.io/name: kube-changejob
+        app.kubernetes.io/name: {{ include "kube-changejob.name" . }}
+        helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
         control-plane: controller-manager
-    name: kube-changejob-controller-manager-metrics-service
+    name: {{ include "kube-changejob.resourceName" (dict "suffix" "controller-manager-metrics-service" "context" $) }}
     namespace: {{ .Release.Namespace }}
 spec:
     ports:
@@ -15,6 +17,6 @@ spec:
           protocol: TCP
           targetPort: {{ .Values.metrics.port }}
     selector:
-        app.kubernetes.io/name: kube-changejob
+        app.kubernetes.io/name: {{ include "kube-changejob.name" . }}
         control-plane: controller-manager
 {{- end }}

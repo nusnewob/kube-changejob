@@ -1043,46 +1043,6 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("Should handle defaulter with wrong object type", func() {
-			By("Calling Default with wrong type")
-			wrongObj := &corev1.ConfigMap{}
-			err := defaulter.Default(ctx, wrongObj)
-
-			By("Expecting type error")
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("expected an ChangeTriggeredJob object"))
-		})
-
-		It("Should handle validator ValidateCreate with wrong object type", func() {
-			By("Calling ValidateCreate with wrong type")
-			wrongObj := &corev1.ConfigMap{}
-			_, err := validator.ValidateCreate(ctx, wrongObj)
-
-			By("Expecting type error")
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("expected a ChangeTriggeredJob object"))
-		})
-
-		It("Should handle validator ValidateUpdate with wrong object type", func() {
-			By("Calling ValidateUpdate with wrong type")
-			wrongObj := &corev1.ConfigMap{}
-			_, err := validator.ValidateUpdate(ctx, oldObj, wrongObj)
-
-			By("Expecting type error")
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("expected a ChangeTriggeredJob object"))
-		})
-
-		It("Should handle validator ValidateDelete with wrong object type", func() {
-			By("Calling ValidateDelete with wrong type")
-			wrongObj := &corev1.ConfigMap{}
-			_, err := validator.ValidateDelete(ctx, wrongObj)
-
-			By("Expecting type error")
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("expected a ChangeTriggeredJob object"))
-		})
-
 		It("Should deny creation with negative cooldown", func() {
 			By("Creating a ChangeTriggeredJob with negative cooldown")
 			obj.Spec.Cooldown = &metav1.Duration{Duration: -1 * time.Second}

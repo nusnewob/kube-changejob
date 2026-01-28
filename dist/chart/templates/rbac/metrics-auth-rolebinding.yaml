@@ -2,13 +2,13 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-    name: kube-changejob-metrics-auth-rolebinding
+    name: {{ include "kube-changejob.resourceName" (dict "suffix" "metrics-auth-rolebinding" "context" $) }}
 roleRef:
     apiGroup: rbac.authorization.k8s.io
     kind: ClusterRole
-    name: kube-changejob-metrics-auth-role
+    name: {{ include "kube-changejob.resourceName" (dict "suffix" "metrics-auth-role" "context" $) }}
 subjects:
     - kind: ServiceAccount
-      name: kube-changejob-controller-manager
+      name: {{ include "kube-changejob.resourceName" (dict "suffix" "controller-manager" "context" $) }}
       namespace: {{ .Release.Namespace }}
 {{- end }}

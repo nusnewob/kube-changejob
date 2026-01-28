@@ -56,7 +56,7 @@ var log = logf.Log.WithName("ChangeTriggeredJob")
 // +kubebuilder:rbac:groups="*",resources="*",verbs=get;watch
 
 // For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.22.4/pkg/reconcile
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.23.1/pkg/reconcile
 func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var changeJob triggersv1alpha.ChangeTriggeredJob
 	if err := r.Get(ctx, req.NamespacedName, &changeJob); err != nil {
@@ -128,7 +128,7 @@ func (r *ChangeTriggeredJobReconciler) Reconcile(ctx context.Context, req ctrl.R
 func (r *ChangeTriggeredJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Index Jobs by their owner UID
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &batchv1.Job{}, "metadata.ownerReferences.uid", func(obj client.Object) []string {
-		var uids []string
+		uids := make([]string, 0, len(obj.GetOwnerReferences()))
 		for _, ref := range obj.GetOwnerReferences() {
 			uids = append(uids, string(ref.UID))
 		}

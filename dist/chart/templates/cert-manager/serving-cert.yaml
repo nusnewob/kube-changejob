@@ -4,15 +4,17 @@ kind: Certificate
 metadata:
     labels:
         app.kubernetes.io/managed-by: {{ .Release.Service }}
-        app.kubernetes.io/name: kube-changejob
-    name: kube-changejob-serving-cert
+        app.kubernetes.io/name: {{ include "kube-changejob.name" . }}
+        helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    name: {{ include "kube-changejob.resourceName" (dict "suffix" "serving-cert" "context" $) }}
     namespace: {{ .Release.Namespace }}
 spec:
     dnsNames:
-        - kube-changejob-webhook-service.{{ .Release.Namespace }}.svc
-        - kube-changejob-webhook-service.{{ .Release.Namespace }}.svc.cluster.local
+        - {{ include "kube-changejob.resourceName" (dict "suffix" "webhook-service" "context" $) }}.{{ .Release.Namespace }}.svc
+        - {{ include "kube-changejob.resourceName" (dict "suffix" "webhook-service" "context" $) }}.{{ .Release.Namespace }}.svc.cluster.local
     issuerRef:
         kind: Issuer
-        name: {{ include "chart.name" . }}-selfsigned-issuer
+        name: {{ include "kube-changejob.resourceName" (dict "suffix" "selfsigned-issuer" "context" $) }}
     secretName: webhook-server-cert
 {{- end }}
