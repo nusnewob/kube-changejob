@@ -28,10 +28,10 @@ jobs:
           cache: true
 
       - name: Install tools
-        run: |
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash
+        uses: alexellis/arkade-get@master
+        with:
+          kustomize: latest
+          helm: latest
 
       - name: Run tests
         run: make test

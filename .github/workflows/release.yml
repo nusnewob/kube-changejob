@@ -77,12 +77,10 @@ jobs:
             VERSION=${{ steps.version.outputs.version }}
 
       - name: Install tools
-        run: |
-          # Install kustomize
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
-          # Install helm
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash
+        uses: alexellis/arkade-get@master
+        with:
+          kustomize: latest
+          helm: latest
 
       - name: Generate manifests
         run: |
@@ -122,25 +120,8 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Get previous tag
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-
-          if [ -z "$PREVIOUS_TAG" ]; then
-            echo "First release - including all commits"
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
-          else
-            echo "Generating changelog from ${PREVIOUS_TAG} to ${{ steps.version.outputs.version }}"
-            CHANGELOG=$(git log ${PREVIOUS_TAG}..${{ steps.version.outputs.version }} --pretty=format:"- %s (%h)" --no-merges)
-          fi
-
           # Save to file
           cat > dist/CHANGELOG.md << EOF
-          # Changelog for ${{ steps.version.outputs.version }}
-
-          ## What's Changed
-
-          ${CHANGELOG}
-
           ## Installation
 
           ### Using kubectl
@@ -170,34 +151,9 @@ jobs:
 
           - \`oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts/kube-changejob:${{ steps.version.outputs.version_no_v }}\`
 
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${{ steps.version.outputs.version }}
           EOF
 
           echo "changelog_file=dist/CHANGELOG.md" >> $GITHUB_OUTPUT
-
-      - name: Create source archives
-        run: |
-          # Create archives excluding unnecessary files
-          tar --exclude='.git' \
-              --exclude='dist' \
-              --exclude='vendor' \
-              --exclude='*.exe' \
-              --transform "s,^,kube-changejob-${{ steps.version.outputs.version_no_v }}/," \
-              -czf dist/kube-changejob-${{ steps.version.outputs.version_no_v }}.tar.gz \
-              .
-
-          zip -r dist/kube-changejob-${{ steps.version.outputs.version_no_v }}.zip \
-              . \
-              -x '*.git*' \
-              -x 'dist/*' \
-              -x 'vendor/*' \
-              -x '*.exe'
-
-      - name: Generate SHA256 checksums
-        run: |
-          cd dist
-          sha256sum *.yaml *.tar.gz *.zip *.tgz > checksums.txt
-          cat checksums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -207,12 +163,10 @@ jobs:
             dist/install.yaml
             dist/crds.yaml
             dist/kube-changejob-*.tgz
-            dist/kube-changejob-*.tar.gz
-            dist/kube-changejob-*.zip
-            dist/checksums.txt
           draft: false
           prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
           generate_release_notes: true
+          append_body: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update latest tag
@@ -222,6 +176,24 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -f latest
           git push origin latest --force
+
+  update-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Update Helm chart
+        run: |
+          # Update chart version
+          sed -i "s/^version:.*/version: ${{ steps.version.outputs.version_no_v }}/" dist/chart/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${{ steps.version.outputs.version_no_v }}\"/" dist/chart/Chart.yaml
 
       - name: Update CHANGELOG.md
         run: |
@@ -268,60 +240,17 @@ jobs:
           # Update the version comparison links at the bottom
           if [ -n "$PREVIOUS_TAG" ]; then
             # Add new version comparison link
-            echo "" >> CHANGELOG.md
             echo "[${{ steps.version.outputs.version }}]: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${{ steps.version.outputs.version }}" >> CHANGELOG.md
           else
-            echo "" >> CHANGELOG.md
             echo "[${{ steps.version.outputs.version }}]: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}" >> CHANGELOG.md
           fi
 
-      - name: Commit and push CHANGELOG.md
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Update the [Unreleased] version comparison links at the bottom
+          sed -i 's/^\[Unreleased\]:.*$//' CHANGELOG.md
+          echo "[Unreleased]: https://github.com/${{ github.repository }}/compare/${{ steps.version.outputs.version }}...HEAD" >> CHANGELOG.md
 
-          # Check if there are changes
-          if git diff --quiet CHANGELOG.md; then
-            echo "No changes to CHANGELOG.md"
-            exit 0
-          fi
-
-          # Commit and push to main branch
-          git add CHANGELOG.md
-          git commit -m "chore: update CHANGELOG.md for release ${{ steps.version.outputs.version }}"
-
-          # Push to main branch (not the tag)
-          git push origin HEAD:main
-
-  update-docs:
-    needs: build-and-release
-    runs-on: ubuntu-latest
-    if: "!contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')"
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Extract version
-        id: version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Update README badges
-        run: |
-          # Update version badge in README
-          sed -i "s|kube-changejob/releases/tag/v[0-9.]*|kube-changejob/releases/tag/${{ steps.version.outputs.version }}|g" README.md
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v8
+      - name: Commit and push
+        uses: EndBug/add-and-commit@v9
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "docs: update version references to ${{ steps.version.outputs.version }}"
-          title: "docs: update version references to ${{ steps.version.outputs.version }}"
-          body: |
-            Automated update of version references after release ${{ steps.version.outputs.version }}
-
-            - Updated README.md badges
-            - Updated documentation links
-          branch: docs/update-version-${{ steps.version.outputs.version }}
-          delete-branch: true
+          message: "chore: update CHANGELOG.md and Helm Chart for release ${{ steps.version.outputs.version }}"
+          files: '["CHANGELOG.md", "dist/chart/Chart.yaml"]'

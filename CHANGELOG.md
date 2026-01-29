@@ -22,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - chore(deps): bump github.com/onsi/ginkgo/v2 from 2.27.4 to 2.27.5 (aa5ad7b)
 - fix: fix release pipeline to update CHANGELOG.md (3ca9a7a)
 
-
 ### Added
 
 ### Changed
@@ -163,9 +162,8 @@ When creating a release, you can use this template:
 
 ---
 
-[Unreleased]: https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.3...HEAD
-[v0.1.0-alpha.3]: https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.2...v0.1.0-alpha.3
-[v0.1.0-alpha.2]: https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
 [v0.1.0-alpha.1]: https://github.com/nusnewob/kube-changejob/releases/tag/v0.1.0-alpha.1
-
+[v0.1.0-alpha.2]: https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
+[v0.1.0-alpha.3]: https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.2...v0.1.0-alpha.3
 [v0.1.0]: https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.3...v0.1.0
+[Unreleased]: https://github.com/nusnewob/kube-changejob/compare/v0.1.0...HEAD
