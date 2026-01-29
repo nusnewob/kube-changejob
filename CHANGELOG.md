@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.0] - 2026-01-29
+
+### Changes
+
+- chore: bump version to v0.1.0 (7e9c2de)
+- fix: preallocating array to fix golangci-lint error (69cf445)
+- fix: kubebuilder upgrade confilicts (eb9bdfe)
+- :warning: (chore) [with conflicts] scaffold update: v4.10.1 -> v4.11.1 (249d35a)
+- fix: codecov config (7ebc7b2)
+- test: Add test for cluster-scoped resources (5c8dd91)
+- fix: indexing namespace and cluster scoped resources (db99b47)
+- fix(controller): Improve logic, robustness, and functionality (9ed8fb2)
+- chore(deps): bump github.com/onsi/ginkgo/v2 from 2.27.4 to 2.27.5 (aa5ad7b)
+- fix: fix release pipeline to update CHANGELOG.md (3ca9a7a)
+
+
 ### Added
 
 ### Changed
@@ -151,3 +167,5 @@ When creating a release, you can use this template:
 [v0.1.0-alpha.3]: https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.2...v0.1.0-alpha.3
 [v0.1.0-alpha.2]: https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
 [v0.1.0-alpha.1]: https://github.com/nusnewob/kube-changejob/releases/tag/v0.1.0-alpha.1
+
+[v0.1.0]: https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.3...v0.1.0
