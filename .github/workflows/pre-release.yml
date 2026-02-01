@@ -106,6 +106,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check CHANGELOG.md
+        uses: orhun/git-cliff-action@v4
+        id: git-cliff
+        with:
+          config: cliff.toml
+          args: -vv --latest --no-exec
+
       - name: Check if ready for release
         run: |
           echo "## Release Readiness Check" >> $GITHUB_STEP_SUMMARY
@@ -125,6 +132,8 @@ jobs:
 
           if [ "$COMMIT_COUNT" -gt "0" ]; then
             echo "✅ Ready for release (${COMMIT_COUNT} new commits)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.git-cliff.outputs.content }}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### To create a release:" >> $GITHUB_STEP_SUMMARY
             echo '```bash' >> $GITHUB_STEP_SUMMARY
