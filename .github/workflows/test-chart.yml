@@ -31,8 +31,8 @@ jobs:
       - name: Prepare kube-changejob
         run: |
           go mod tidy
-          make docker-build IMG=kube-changejob:v0.1.0
-          kind load docker-image kube-changejob:v0.1.0
+          make docker-build IMG=ghcr.io/nusnewob/kube-changejob:dev
+          kind load docker-image ghcr.io/nusnewob/kube-changejob:dev
 
       - name: Install Helm
         uses: Azure/setup-helm@v4.3.1
@@ -59,7 +59,7 @@ jobs:
       #          helm install prometheus-crds prometheus-community/prometheus-operator-crds
 
       - name: Install Helm chart for project
-        run: helm install my-release ./dist/chart --create-namespace --namespace kube-changejob-system
+        run: helm install my-release ./dist/chart --create-namespace --namespace kube-changejob-system --set manager.image.tag=dev
 
       - name: Check Helm release status
         run: helm status my-release --namespace kube-changejob-system
