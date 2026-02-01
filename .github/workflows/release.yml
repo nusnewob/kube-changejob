@@ -199,14 +199,11 @@ jobs:
           sed -i "s/^version:.*/version: ${{ steps.version.outputs.version_no_v }}/" dist/chart/Chart.yaml
           sed -i "s/^appVersion:.*/appVersion: \"${{ steps.version.outputs.version_no_v }}\"/" dist/chart/Chart.yaml
 
-      - name: Spell Check Repo
-        uses: crate-ci/typos@v1.42.3
-
       - name: Update CHANGELOG.md
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
-          args: --verbose
+          args: -vv --no-exec
         env:
           OUTPUT: CHANGELOG.md
 

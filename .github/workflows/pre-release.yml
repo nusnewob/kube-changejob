@@ -75,6 +75,9 @@ jobs:
             echo "✓ Chart validation passed"
           fi
 
+      - name: Spell Check Repo
+        uses: crate-ci/typos@v1
+
   security-scan:
     runs-on: ubuntu-latest
     steps:

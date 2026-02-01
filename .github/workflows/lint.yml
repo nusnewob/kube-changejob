@@ -23,3 +23,6 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: latest
+
+      - name: Spell Check Repo
+        uses: crate-ci/typos@v1
