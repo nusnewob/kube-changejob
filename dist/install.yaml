@@ -9147,7 +9147,7 @@ spec:
               resourceHashes:
                 description: Last change hash
                 items:
-                  description: Watched ResouceHash object
+                  description: Watched ResourceHash object
                   properties:
                     apiVersion:
                       description: API group of the resource, e.g., apps/v1, example.io/v1beta

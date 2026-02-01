@@ -128,7 +128,7 @@ type ChangeTriggeredJobStatus struct {
 	LastJobStatus JobState `json:"lastJobStatus,omitempty"`
 }
 
-// Watched ResouceHash object
+// Watched ResourceHash object
 type ResourceReferenceStatus struct {
 	// API group of the resource, e.g., apps/v1, example.io/v1beta
 	// +optional
