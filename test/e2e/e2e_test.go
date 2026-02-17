@@ -34,7 +34,6 @@ import (
 	authenticationv1 "k8s.io/api/authentication/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	discoveryv1 "k8s.io/api/discovery/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -261,98 +260,93 @@ var _ = Describe("E2E Tests", Ordered, func() {
 
 		By("ensuring the controller pod is ready")
 		verifyControllerPodReady := func(g Gomega) {
-			pod := &corev1.Pod{}
-			err := k8sClient.Get(ctx, types.NamespacedName{Name: controllerPodName, Namespace: namespace}, pod)
+			cmd := exec.Command("kubectl", "get", "pod", controllerPodName, "-n", namespace,
+				"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
+			output, err := utils.Run(cmd)
 			g.Expect(err).NotTo(HaveOccurred())
-
-			var isReady bool
-			for _, cond := range pod.Status.Conditions {
-				if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
-					isReady = true
-					break
-				}
-			}
-			g.Expect(isReady).To(BeTrue(), "Controller pod not ready")
+			g.Expect(output).To(Equal("True"), "Controller pod not ready")
 		}
 		Eventually(verifyControllerPodReady, 3*time.Minute, time.Second).Should(Succeed())
 
 		By("verifying that the controller manager is serving the metrics server")
 		verifyMetricsServerStarted := func(g Gomega) {
-			req := clientset.CoreV1().Pods(namespace).GetLogs(controllerPodName, &corev1.PodLogOptions{})
-			logs, err := req.DoRaw(ctx)
+			cmd := exec.Command("kubectl", "logs", controllerPodName, "-n", namespace)
+			output, err := utils.Run(cmd)
 			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(string(logs)).To(ContainSubstring("Serving metrics server"),
+			g.Expect(output).To(ContainSubstring("Serving metrics server"),
 				"Metrics server not yet started")
 		}
 		Eventually(verifyMetricsServerStarted, 3*time.Minute, time.Second).Should(Succeed())
 
 		By("waiting for the webhook service endpoints to be ready")
 		verifyWebhookEndpointsReady := func(g Gomega) {
-			epSliceList := &discoveryv1.EndpointSliceList{}
-			err := k8sClient.List(ctx, epSliceList,
-				client.InNamespace(namespace),
-				client.MatchingLabels{"kubernetes.io/service-name": "kube-changejob-webhook-service"})
-			g.Expect(err).NotTo(HaveOccurred(), "Failed to list endpoint slices")
-			g.Expect(epSliceList.Items).NotTo(BeEmpty(), "Webhook endpoints not found")
-
-			hasReadyEndpoint := false
-			for _, eps := range epSliceList.Items {
-				for _, ep := range eps.Endpoints {
-					if len(ep.Addresses) > 0 {
-						hasReadyEndpoint = true
-						break
-					}
-				}
-			}
-			g.Expect(hasReadyEndpoint).To(BeTrue(), "No ready webhook endpoints found")
+			cmd := exec.Command("kubectl", "get", "endpointslices.discovery.k8s.io", "-n", namespace,
+				"-l", "kubernetes.io/service-name=kube-changejob-webhook-service",
+				"-o", "jsonpath={range .items[*]}{range .endpoints[*]}{.addresses[*]}{end}{end}")
+			output, err := utils.Run(cmd)
+			g.Expect(err).NotTo(HaveOccurred(), "Webhook endpoints should exist")
+			g.Expect(output).ShouldNot(BeEmpty(), "Webhook endpoints not yet ready")
 		}
 		Eventually(verifyWebhookEndpointsReady, 3*time.Minute, time.Second).Should(Succeed())
 
-		By("creating the curl-metrics pod to access the metrics endpoint")
-		// Delete existing curl-metrics pod if it exists
-		existingPod := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "curl-metrics",
-				Namespace: namespace,
-			},
+		By("verifying the mutating webhook server is ready")
+		verifyMutatingWebhookReady := func(g Gomega) {
+			cmd := exec.Command("kubectl", "get", "mutatingwebhookconfigurations.admissionregistration.k8s.io",
+				"kube-changejob-mutating-webhook-configuration",
+				"-o", "jsonpath={.webhooks[0].clientConfig.caBundle}")
+			output, err := utils.Run(cmd)
+			g.Expect(err).NotTo(HaveOccurred(), "MutatingWebhookConfiguration should exist")
+			g.Expect(output).ShouldNot(BeEmpty(), "Mutating webhook CA bundle not yet injected")
 		}
-		_ = k8sClient.Delete(ctx, existingPod)
-		time.Sleep(2 * time.Second)
+		Eventually(verifyMutatingWebhookReady, 3*time.Minute, time.Second).Should(Succeed())
 
-		curlPod := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "curl-metrics",
-				Namespace: namespace,
-			},
-			Spec: corev1.PodSpec{
-				ServiceAccountName: serviceAccountName,
-				RestartPolicy:      corev1.RestartPolicyNever,
-				Containers: []corev1.Container{
-					{
-						Name:    "curl",
-						Image:   "curlimages/curl:latest",
-						Command: []string{"/bin/sh", "-c"},
-						Args: []string{
-							fmt.Sprintf("curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics",
-								token, metricsServiceName, namespace),
-						},
-						SecurityContext: &corev1.SecurityContext{
-							ReadOnlyRootFilesystem:   ptrBool(true),
-							AllowPrivilegeEscalation: ptrBool(false),
-							Capabilities: &corev1.Capabilities{
-								Drop: []corev1.Capability{"ALL"},
-							},
-							RunAsNonRoot: ptrBool(true),
-							RunAsUser:    ptrInt64(1000),
-							SeccompProfile: &corev1.SeccompProfile{
-								Type: corev1.SeccompProfileTypeRuntimeDefault,
-							},
-						},
-					},
-				},
-			},
+		By("verifying the validating webhook server is ready")
+		verifyValidatingWebhookReady := func(g Gomega) {
+			cmd := exec.Command("kubectl", "get", "validatingwebhookconfigurations.admissionregistration.k8s.io",
+				"kube-changejob-validating-webhook-configuration",
+				"-o", "jsonpath={.webhooks[0].clientConfig.caBundle}")
+			output, err := utils.Run(cmd)
+			g.Expect(err).NotTo(HaveOccurred(), "ValidatingWebhookConfiguration should exist")
+			g.Expect(output).ShouldNot(BeEmpty(), "Validating webhook CA bundle not yet injected")
 		}
-		err = k8sClient.Create(ctx, curlPod)
+		Eventually(verifyValidatingWebhookReady, 3*time.Minute, time.Second).Should(Succeed())
+
+		By("waiting additional time for webhook server to stabilize")
+		time.Sleep(5 * time.Second)
+
+		// +kubebuilder:scaffold:e2e-metrics-webhooks-readiness
+
+		By("creating the curl-metrics pod to access the metrics endpoint")
+		cmd := exec.Command("kubectl", "run", "curl-metrics", "--restart=Never",
+			"--namespace", namespace,
+			"--image=curlimages/curl:latest",
+			"--overrides",
+			fmt.Sprintf(`{
+				"spec": {
+					"containers": [{
+						"name": "curl",
+						"image": "curlimages/curl:latest",
+						"command": ["/bin/sh", "-c"],
+						"args": [
+							"for i in $(seq 1 30); do curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics && exit 0 || sleep 2; done; exit 1"
+						],
+						"securityContext": {
+							"readOnlyRootFilesystem": true,
+							"allowPrivilegeEscalation": false,
+							"capabilities": {
+								"drop": ["ALL"]
+								},
+								"runAsNonRoot": true,
+								"runAsUser": 1000,
+								"seccompProfile": {
+									"type": "RuntimeDefault"
+								}
+							}
+						}],
+						"serviceAccountName": "%s"
+					}
+				}`, token, metricsServiceName, namespace, serviceAccountName))
+		_, err = utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create curl-metrics pod")
 
 		By("waiting for the curl-metrics pod to complete")
@@ -586,90 +580,6 @@ var _ = Describe("E2E Tests", Ordered, func() {
 				err := k8sClient.Create(ctx, cm)
 				Expect(err).NotTo(HaveOccurred())
 
-<<<<<<< HEAD
-			By("getting the service account token")
-			token, err := serviceAccountToken()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(token).NotTo(BeEmpty())
-
-			By("ensuring the controller pod is ready")
-			verifyControllerPodReady := func(g Gomega) {
-				cmd := exec.Command("kubectl", "get", "pod", controllerPodName, "-n", namespace,
-					"-o", "jsonpath={.status.conditions[?(@.type=='Ready')].status}")
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).To(Equal("True"), "Controller pod not ready")
-			}
-			Eventually(verifyControllerPodReady, 3*time.Minute, time.Second).Should(Succeed())
-
-			By("verifying that the controller manager is serving the metrics server")
-			verifyMetricsServerStarted := func(g Gomega) {
-				cmd := exec.Command("kubectl", "logs", controllerPodName, "-n", namespace)
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).To(ContainSubstring("Serving metrics server"),
-					"Metrics server not yet started")
-			}
-			Eventually(verifyMetricsServerStarted, 3*time.Minute, time.Second).Should(Succeed())
-
-			By("waiting for the webhook service endpoints to be ready")
-			verifyWebhookEndpointsReady := func(g Gomega) {
-				cmd := exec.Command("kubectl", "get", "endpointslices.discovery.k8s.io", "-n", namespace,
-					"-l", "kubernetes.io/service-name=kube-changejob-webhook-service",
-					"-o", "jsonpath={range .items[*]}{range .endpoints[*]}{.addresses[*]}{end}{end}")
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred(), "Webhook endpoints should exist")
-				g.Expect(output).ShouldNot(BeEmpty(), "Webhook endpoints not yet ready")
-			}
-			Eventually(verifyWebhookEndpointsReady, 3*time.Minute, time.Second).Should(Succeed())
-
-			By("verifying the mutating webhook server is ready")
-			verifyMutatingWebhookReady := func(g Gomega) {
-				cmd := exec.Command("kubectl", "get", "mutatingwebhookconfigurations.admissionregistration.k8s.io",
-					"kube-changejob-mutating-webhook-configuration",
-					"-o", "jsonpath={.webhooks[0].clientConfig.caBundle}")
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred(), "MutatingWebhookConfiguration should exist")
-				g.Expect(output).ShouldNot(BeEmpty(), "Mutating webhook CA bundle not yet injected")
-			}
-			Eventually(verifyMutatingWebhookReady, 3*time.Minute, time.Second).Should(Succeed())
-
-			By("verifying the validating webhook server is ready")
-			verifyValidatingWebhookReady := func(g Gomega) {
-				cmd := exec.Command("kubectl", "get", "validatingwebhookconfigurations.admissionregistration.k8s.io",
-					"kube-changejob-validating-webhook-configuration",
-					"-o", "jsonpath={.webhooks[0].clientConfig.caBundle}")
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred(), "ValidatingWebhookConfiguration should exist")
-				g.Expect(output).ShouldNot(BeEmpty(), "Validating webhook CA bundle not yet injected")
-			}
-			Eventually(verifyValidatingWebhookReady, 3*time.Minute, time.Second).Should(Succeed())
-
-			By("waiting additional time for webhook server to stabilize")
-			time.Sleep(5 * time.Second)
-
-			// +kubebuilder:scaffold:e2e-metrics-webhooks-readiness
-
-			By("creating the curl-metrics pod to access the metrics endpoint")
-			cmd = exec.Command("kubectl", "run", "curl-metrics", "--restart=Never",
-				"--namespace", namespace,
-				"--image=curlimages/curl:latest",
-				"--overrides",
-				fmt.Sprintf(`{
-					"spec": {
-						"containers": [{
-							"name": "curl",
-							"image": "curlimages/curl:latest",
-							"command": ["/bin/sh", "-c"],
-							"args": [
-								"for i in $(seq 1 30); do curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics && exit 0 || sleep 2; done; exit 1"
-							],
-							"securityContext": {
-								"readOnlyRootFilesystem": true,
-								"allowPrivilegeEscalation": false,
-								"capabilities": {
-									"drop": ["ALL"]
-=======
 				By("creating a ChangeTriggeredJob watching the ConfigMap")
 				ctj := &triggersv1alpha.ChangeTriggeredJob{
 					ObjectMeta: metav1.ObjectMeta{
@@ -700,7 +610,6 @@ var _ = Describe("E2E Tests", Ordered, func() {
 										},
 										RestartPolicy: corev1.RestartPolicyNever,
 									},
->>>>>>> tmp-original-17-02-26-00-32
 								},
 							},
 						},
