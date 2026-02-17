@@ -1,6 +1,19 @@
 apiVersion: v2
 name: kube-changejob
-description: A Helm chart to distribute the project kube-changejob
+description: A Helm chart to distribute kube-changejob
 type: application
+<<<<<<< HEAD
+
+version: 0.1.0
+appVersion: "0.1.0"
+
+keywords:
+  - kubernetes
+  - operator
+
+annotations:
+  kubebuilder.io/generated-by: kubebuilder
+=======
 version: 0.1.1
 appVersion: "0.1.1"
+>>>>>>> tmp-original-17-02-26-00-32
