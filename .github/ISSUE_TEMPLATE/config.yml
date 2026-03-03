@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/nusnewob/kube-changejob/blob/main/README.md
+    about: Check the documentation for guides and examples
+  - name: 💬 Discussion & Questions
+    url: https://github.com/nusnewob/kube-changejob/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 🔒 Security Issues
+    url: https://github.com/nusnewob/kube-changejob/security/advisories/new
+    about: Report security vulnerabilities privately

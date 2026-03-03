@@ -9,11 +9,20 @@
 ## Configure the controller manager deployment
 ##
 manager:
-  replicas: 1
-  
+  # Controller config
+  config:
+    # pollInterval: 60s # Controller polling interval
+    # debug: false
+    # logging:
+    #   level: info # debug, info, warn, error, panic, fatal or any integer value > 0 which corresponds to custom debug levels of increasing verbosity
+    #   format: text # json or text
+    #   timestamp: rfc3339 # epoch, millis, nano, iso8601, rfc3339 or rfc3339nano
+
+  replicas: 2
+
   image:
-    repository: controller
-    tag: latest
+    repository: ghcr.io/nusnewob/kube-changejob
+    # tag: latest
     pullPolicy: IfNotPresent
 
   ## Arguments
@@ -31,29 +40,39 @@ manager:
 
   ## Pod-level security settings
   ##
+  # Controller watched resources types, also configures controller RBAC permissions
+  # Default allows to watch all resources
+  watchResources:
+    - apiGroups: ["*"]
+      resources: ["*"]
+
+  # Pod-level security settings
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:
-        type: RuntimeDefault
+      type: RuntimeDefault
 
   ## Container-level security settings
   ##
   securityContext:
     allowPrivilegeEscalation: false
     capabilities:
-        drop:
-            - ALL
+      drop:
+        - ALL
     readOnlyRootFilesystem: true
 
   ## Resource limits and requests
   ##
   resources:
     limits:
-        cpu: 500m
-        memory: 128Mi
+      cpu: 500m
+      memory: 128Mi
     requests:
-        cpu: 10m
-        memory: 64Mi
+      cpu: 10m
+      memory: 64Mi
+
+webhook:
+  port: 9443
 
   ## Manager pod's affinity
   ##
@@ -71,7 +90,7 @@ manager:
 ##
 rbacHelpers:
   # Install convenience admin/editor/viewer roles for CRDs
-  enable: false
+  enable: true
 
 ## Custom Resource Definitions
 ##
@@ -107,4 +126,3 @@ webhook:
 ##
 prometheus:
   enable: false
-

@@ -13,15 +13,15 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: changetriggeredjob-admin-role
 rules:
-- apiGroups:
-  - triggers.changejob.dev
-  resources:
-  - changetriggeredjobs
-  verbs:
-  - '*'
-- apiGroups:
-  - triggers.changejob.dev
-  resources:
-  - changetriggeredjobs/status
-  verbs:
-  - get
+  - apiGroups:
+      - triggers.changejob.dev
+    resources:
+      - changetriggeredjobs
+    verbs:
+      - "*"
+  - apiGroups:
+      - triggers.changejob.dev
+    resources:
+      - changetriggeredjobs/status
+    verbs:
+      - get
