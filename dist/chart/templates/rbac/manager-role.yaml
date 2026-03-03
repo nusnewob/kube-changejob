@@ -1,8 +1,36 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-    name: {{ include "kube-changejob.resourceName" (dict "suffix" "manager-role" "context" $) }}
+  name: {{ include "kube-changejob.resourceName" (dict "suffix" "manager-role" "context" $) }}
 rules:
+<<<<<<< HEAD
+- apiGroups:
+  - triggers.changejob.dev
+  resources:
+  - changetriggeredjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - triggers.changejob.dev
+  resources:
+  - changetriggeredjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - triggers.changejob.dev
+  resources:
+  - changetriggeredjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+=======
     - apiGroups:
         - batch
       resources:
@@ -48,3 +76,4 @@ rules:
         - get
         - watch
     {{- end }}
+>>>>>>> tmp-original-03-03-26-00-31

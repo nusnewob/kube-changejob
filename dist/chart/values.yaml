@@ -9,6 +9,9 @@
 ## Configure the controller manager deployment
 ##
 manager:
+<<<<<<< HEAD
+  replicas: 1
+=======
   # Controller config
   config:
     # pollInterval: 60s # Controller polling interval
@@ -19,6 +22,7 @@ manager:
     #   timestamp: rfc3339 # epoch, millis, nano, iso8601, rfc3339 or rfc3339nano
 
   replicas: 2
+>>>>>>> tmp-original-03-03-26-00-31
 
   image:
     repository: ghcr.io/nusnewob/kube-changejob
@@ -33,6 +37,11 @@ manager:
   ## Environment variables
   ##
   env: []
+
+  ## Env overrides (--set manager.envOverrides.VAR=value)
+  ## Same name in env above: this value takes precedence.
+  ##
+  envOverrides: {}
 
   ## Image pull secrets
   ##
@@ -58,7 +67,11 @@ manager:
     allowPrivilegeEscalation: false
     capabilities:
       drop:
+<<<<<<< HEAD
+      - ALL
+=======
         - ALL
+>>>>>>> tmp-original-03-03-26-00-31
     readOnlyRootFilesystem: true
 
   ## Resource limits and requests
@@ -70,9 +83,12 @@ manager:
     requests:
       cpu: 10m
       memory: 64Mi
+<<<<<<< HEAD
+=======
 
 webhook:
   port: 9443
+>>>>>>> tmp-original-03-03-26-00-31
 
   ## Manager pod's affinity
   ##
