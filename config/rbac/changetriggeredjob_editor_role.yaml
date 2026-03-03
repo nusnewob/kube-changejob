@@ -13,21 +13,21 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: changetriggeredjob-editor-role
 rules:
-- apiGroups:
-  - triggers.changejob.dev
-  resources:
-  - changetriggeredjobs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - triggers.changejob.dev
-  resources:
-  - changetriggeredjobs/status
-  verbs:
-  - get
+  - apiGroups:
+      - triggers.changejob.dev
+    resources:
+      - changetriggeredjobs
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - triggers.changejob.dev
+    resources:
+      - changetriggeredjobs/status
+    verbs:
+      - get

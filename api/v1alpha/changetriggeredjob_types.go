@@ -1,5 +1,5 @@
 /*
-Copyright 2026.
+Copyright 2025 Bowen Sun.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha
 
 import (
+	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,10 +31,63 @@ type ChangeTriggeredJobSpec struct {
 	// The following markers will use OpenAPI v3 schema to validate the value
 	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
 
-	// foo is an example field of ChangeTriggeredJob. Edit changetriggeredjob_types.go to remove/update
+	// jobTemplate defines the job that will be created when executing a Job.
+	// +required
+	JobTemplate batchv1.JobTemplateSpec `json:"jobTemplate"`
+
+	// list of resources to watch
+	// +required
+	Resources []ResourceReference `json:"resources"`
+
+	// Trigger condition, job triggers when All or Any watched resource changes
 	// +optional
-	Foo *string `json:"foo,omitempty"`
+	// +default:value="Any"
+	Condition *TriggerCondition `json:"condition"`
+
+	// Optional: cooldown period between triggers
+	// +optional
+	// +default:value="60s"
+	Cooldown *metav1.Duration `json:"cooldown,omitempty"`
+
+	// Optional: max job history to keep
+	// +optional
+	// +default:value=5
+	// +kubebuilder:validation:Minimum=1
+	History *int32 `json:"history,omitempty"`
 }
+
+// Watched Resource object
+type ResourceReference struct {
+	// API group of the resource, e.g., apps/v1, example.io/v1beta
+	// +required
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of the Kubernetes resource, e.g., ConfigMap, Secret
+	// +required
+	Kind string `json:"kind"`
+
+	// Name of the resource
+	// +required
+	Name string `json:"name"`
+
+	// Namespace of the resource (optional for cluster-scoped resources)
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Optional: JSON Path of fields to watch within the resource
+	// +optional
+	// +kubebuilder:default={"*"}
+	Fields []string `json:"fields,omitempty"`
+}
+
+// Define trigger conditions
+// +kubebuilder:validation:Enum:=All;Any
+type TriggerCondition string
+
+const (
+	TriggerConditionAll TriggerCondition = "All"
+	TriggerConditionAny TriggerCondition = "Any"
+)
 
 // ChangeTriggeredJobStatus defines the observed state of ChangeTriggeredJob.
 type ChangeTriggeredJobStatus struct {
@@ -56,10 +110,65 @@ type ChangeTriggeredJobStatus struct {
 	// +listMapKey=type
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Last change hash
+	// +optional
+	ResourceHashes []ResourceReferenceStatus `json:"resourceHashes,omitempty"`
+
+	// Last Job triggered time
+	// +optional
+	LastTriggeredTime *metav1.Time `json:"lastTriggeredTime,omitempty"`
+
+	// Last Job name
+	// +optional
+	LastJobName string `json:"lastJobName,omitempty"`
+
+	// Last Job status
+	// +optional
+	LastJobStatus JobState `json:"lastJobStatus,omitempty"`
 }
+
+// Watched ResourceHash object
+type ResourceReferenceStatus struct {
+	// API group of the resource, e.g., apps/v1, example.io/v1beta
+	// +optional
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of the Kubernetes resource, e.g., ConfigMap, Secret
+	// +optional
+	Kind string `json:"kind"`
+
+	// Name of the resource
+	// +optional
+	Name string `json:"name"`
+
+	// Namespace of the resource (optional for cluster-scoped resources)
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// Optional: fields to watch within the resource
+	// +optional
+	Fields []ResourceFieldHash `json:"fields,omitempty"`
+}
+
+type ResourceFieldHash struct {
+	Field    string `json:"field"`
+	LastHash string `json:"hash"`
+}
+
+// Define last job state
+// +kubebuilder:validation:Enum:=Active;Succeeded;Failed
+type JobState string
+
+const (
+	JobStateActive    JobState = "Active"
+	JobStateSucceeded JobState = "Succeeded"
+	JobStateFailed    JobState = "Failed"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=ctj;ctjs
 
 // ChangeTriggeredJob is the Schema for the changetriggeredjobs API
 type ChangeTriggeredJob struct {

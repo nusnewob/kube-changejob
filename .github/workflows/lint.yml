@@ -3,21 +3,29 @@ name: Lint
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   lint:
-    name: Run on Ubuntu
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Clone the code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
       - name: Check linter configuration
         run: make lint-config
+
       - name: Run linter
-        run: make lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+
+      - name: Spell Check Repo
+        uses: crate-ci/typos@v1

@@ -2,7 +2,7 @@
 // +build e2e
 
 /*
-Copyright 2026.
+Copyright 2025 Bowen Sun.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,12 +36,23 @@ var (
 	managerImage = "example.com/kube-changejob:v0.0.1"
 	// shouldCleanupCertManager tracks whether CertManager was installed by this suite.
 	shouldCleanupCertManager = false
+
+	// TestE2E runs the e2e test suite to validate the solution in an isolated environment.
+	// The default setup requires Kind and CertManager.
+	//
+	// To skip CertManager installation, set: CERT_MANAGER_INSTALL_SKIP=true
+	// Optional Environment Variables:
+	// - CERT_MANAGER_INSTALL_SKIP=true: Skips CertManager installation during test setup.
+	// These variables are useful if CertManager is already installed, avoiding
+	// re-installation and conflicts.
+	skipCertManagerInstall = os.Getenv("CERT_MANAGER_INSTALL_SKIP") == "true"
+	// isCertManagerAlreadyInstalled will be set true when CertManager CRDs be found on the cluster
+	isCertManagerAlreadyInstalled = false
 )
 
-// TestE2E runs the e2e test suite to validate the solution in an isolated environment.
-// The default setup requires Kind and CertManager.
-//
-// To skip CertManager installation, set: CERT_MANAGER_INSTALL_SKIP=true
+// TestE2E runs the end-to-end (e2e) test suite for the project. These tests execute in an isolated,
+// temporary environment to validate project changes with the purpose of being used in CI jobs.
+// The default setup requires Kind and builds/loads the Manager Docker image locally.
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	_, _ = fmt.Fprintf(GinkgoWriter, "Starting kube-changejob e2e test suite\n")
@@ -64,7 +75,12 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	teardownCertManager()
+	// Teardown CertManager after the suite if not skipped and if it was not already installed
+	if !skipCertManagerInstall && !isCertManagerAlreadyInstalled {
+		_, _ = fmt.Fprintf(GinkgoWriter, "Uninstalling CertManager...\n")
+		teardownCertManager()
+	}
+	// Cleanup handled in individual test specs
 })
 
 // setupCertManager installs CertManager if needed for webhook tests.
