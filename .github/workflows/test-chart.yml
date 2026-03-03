@@ -3,27 +3,28 @@ name: Test Chart
 on:
   push:
   pull_request:
-  workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
-  test-chart:
+  test-e2e:
+    name: Run on Ubuntu
     runs-on: ubuntu-latest
     steps:
       - name: Clone the code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
       - name: Install the latest version of kind
-        uses: helm/kind-action@v1
-        with:
-          install_only: true
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-$(go env GOARCH)
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Verify kind installation
+        run: kind version
 
       - name: Create kind cluster
         run: kind create cluster
@@ -31,14 +32,16 @@ jobs:
       - name: Prepare kube-changejob
         run: |
           go mod tidy
-          make docker-build IMG=ghcr.io/nusnewob/kube-changejob:dev
-          kind load docker-image ghcr.io/nusnewob/kube-changejob:dev
+          make docker-build IMG=controller:latest
+          kind load docker-image controller:latest
 
       - name: Install Helm
-        uses: Azure/setup-helm@v4.3.1
+        run: make install-helm
 
       - name: Lint Helm Chart
-        run: helm lint --strict ./dist/chart
+        run: |
+          helm lint ./dist/chart
+
 
       - name: Install cert-manager via Helm (wait for readiness)
         run: |
@@ -51,15 +54,17 @@ jobs:
             --wait \
             --timeout 300s
 
-      # TODO: Uncomment if Prometheus is enabled
-      #      - name: Install Prometheus Operator CRDs
-      #        run: |
-      #          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-      #          helm repo update
-      #          helm install prometheus-crds prometheus-community/prometheus-operator-crds
+# TODO: Uncomment if Prometheus is enabled
+#      - name: Install Prometheus Operator CRDs
+#        run: |
+#          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#          helm repo update
+#          helm install prometheus-crds prometheus-community/prometheus-operator-crds
 
-      - name: Install Helm chart for project
-        run: helm install my-release ./dist/chart --create-namespace --namespace kube-changejob-system --set manager.image.tag=dev
+      - name: Deploy manager via Helm
+        run: |
+          make helm-deploy IMG=kube-changejob:v0.1.0
 
       - name: Check Helm release status
-        run: helm status my-release --namespace kube-changejob-system
+        run: |
+          make helm-status

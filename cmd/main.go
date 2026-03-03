@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Bowen Sun.
+Copyright 2026.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,14 +19,10 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	"fmt"
 	"os"
-	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,14 +30,12 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-
-	kbzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	triggersv1alpha "github.com/nusnewob/kube-changejob/api/v1alpha"
-	"github.com/nusnewob/kube-changejob/internal/config"
 	"github.com/nusnewob/kube-changejob/internal/controller"
 	webhookv1alpha "github.com/nusnewob/kube-changejob/internal/webhook/v1alpha"
 	// +kubebuilder:scaffold:imports
@@ -69,12 +63,6 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
-	cfg := config.DefaultControllerConfig
-	var debug bool
-	var logLevel string
-	var logFormat string
-	var logTimestamp string
-
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -92,76 +80,13 @@ func main() {
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
-
-	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
-	flag.StringVar(&logLevel, "log-level", "info", "Set the log level (debug, info, warn, error, panic, fatal or "+
-		"any integer value > 0 which corresponds to custom debug levels of increasing verbosity)")
-	flag.StringVar(&logFormat, "log-format", "text", "Set the log format (json or text)")
-	flag.StringVar(&logTimestamp, "log-timestamp", "rfc3339",
-		"Set the log timestamp format (epoch, millis, nano, iso8601, rfc3339 or rfc3339nano)")
-
-	encCfg := zap.NewProductionEncoderConfig()
-	if logFormat == "text" {
-		encCfg = zap.NewDevelopmentEncoderConfig()
+	opts := zap.Options{
+		Development: true,
 	}
-
-	encoder := zapcore.NewConsoleEncoder(encCfg)
-	if logFormat == "json" {
-		encoder = zapcore.NewJSONEncoder(encCfg)
-	}
-
-	zapLogLevel := zap.NewAtomicLevel()
-	if debug {
-		zapLogLevel.SetLevel(zapcore.DebugLevel)
-	} else if err := zapLogLevel.UnmarshalText([]byte(logLevel)); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to parse log level: %v\n", err)
-		os.Exit(1)
-	}
-
-	switch logTimestamp {
-	case "epoch":
-		encCfg.EncodeTime = zapcore.EpochTimeEncoder
-	case "millis":
-		encCfg.EncodeTime = zapcore.EpochMillisTimeEncoder
-	case "nano":
-		encCfg.EncodeTime = zapcore.EpochNanosTimeEncoder
-	case "iso8601":
-		encCfg.EncodeTime = zapcore.ISO8601TimeEncoder
-	case "rfc3339":
-		encCfg.EncodeTime = zapcore.RFC3339TimeEncoder
-	case "rfc3339nano":
-		encCfg.EncodeTime = zapcore.RFC3339NanoTimeEncoder
-	default:
-		encCfg.EncodeTime = zapcore.RFC3339TimeEncoder
-	}
-
-	stacktraceLevel := zapcore.FatalLevel
-	if debug {
-		stacktraceLevel = zapcore.WarnLevel
-	}
-
-	opts := kbzap.Options{
-		Development:     debug,
-		Encoder:         encoder,
-		Level:           zapLogLevel,
-		StacktraceLevel: stacktraceLevel,
-	}
-
-	// Environment variable override
-	if v := os.Getenv("POLL_INTERVAL"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			cfg.PollInterval = d
-		}
-	}
-
-	// Command-line flag (highest priority)
-	flag.DurationVar(&cfg.PollInterval, "poll-interval", cfg.PollInterval,
-		"Polling interval for ChangeTriggeredJob controller")
-
-	// opts.BindFlags(flag.CommandLine)
+	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	ctrl.SetLogger(kbzap.New(kbzap.UseFlagOptions(&opts)))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -257,8 +182,6 @@ func main() {
 	if err := (&controller.ChangeTriggeredJobReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Config: cfg,
-		Log:    ctrl.Log.WithName("controllers").WithName("ChangeTriggeredJob"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "ChangeTriggeredJob")
 		os.Exit(1)

@@ -37,8 +37,6 @@ spec:
             {{- end }}
             containers:
                 - args:
-                    - --leader-elect
-                    - --enable-http2
                     {{- if .Values.metrics.enable }}
                     - --metrics-bind-address=:{{ .Values.metrics.port }}
                     {{- else }}
@@ -52,28 +50,9 @@ spec:
                     {{- if .Values.certManager.enable }}
                     - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
                     {{- end }}
-                    {{- if .Values.manager.config }}
-                    {{- if .Values.manager.config.pollInterval }}
-                    - --poll-interval={{ .Values.manager.config.pollInterval }}
-                    {{- end }}
-                    {{- if .Values.manager.config.debug }}
-                    - --debug={{ .Values.manager.config.debug }}
-                    {{- end }}
-                    {{- if .Values.manager.config.logging }}
-                    {{- if .Values.manager.config.logging.level }}
-                    - --logging-level={{ .Values.manager.config.logging.level }}
-                    {{- end }}
-                    {{- if .Values.manager.config.logging.format }}
-                    - --logging-format={{ .Values.manager.config.logging.format }}
-                    {{- end }}
-                    {{- if .Values.manager.config.logging.timestamp }}
-                    - --logging-timestamp={{ .Values.manager.config.logging.timestamp }}
-                    {{- end }}
-                    {{- end }}
-                    {{- end }}
                   command:
                     - /manager
-                  image: "{{ .Values.manager.image.repository }}:{{ default .Chart.AppVersion .Values.manager.image.tag }}"
+                  image: "{{ .Values.manager.image.repository }}:{{ .Values.manager.image.tag }}"
                   imagePullPolicy: {{ .Values.manager.image.pullPolicy }}
                   livenessProbe:
                     httpGet:
