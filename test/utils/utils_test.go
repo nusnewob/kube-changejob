@@ -321,7 +321,7 @@ func TestConstantValues(t *testing.T) {
 		{
 			name:     "certmanager version",
 			value:    certmanagerVersion,
-			expected: "v1.19.3",
+			expected: "v1.19.4",
 		},
 		{
 			name:     "default kind binary",
@@ -345,7 +345,7 @@ func TestConstantValues(t *testing.T) {
 }
 
 func TestCertManagerURLTemplate(t *testing.T) {
-	expectedURL := "https://github.com/cert-manager/cert-manager/releases/download/v1.19.3/cert-manager.yaml"
+	expectedURL := "https://github.com/cert-manager/cert-manager/releases/download/v1.19.4/cert-manager.yaml"
 
 	// Simulate URL construction from template
 	actualURL := "https://github.com/cert-manager/cert-manager/releases/download/" +

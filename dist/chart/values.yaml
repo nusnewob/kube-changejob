@@ -34,6 +34,11 @@ manager:
   ##
   env: []
 
+  ## Env overrides (--set manager.envOverrides.VAR=value)
+  ## Same name in env above: this value takes precedence.
+  ##
+  envOverrides: {}
+
   ## Image pull secrets
   ##
   imagePullSecrets: []
@@ -58,7 +63,7 @@ manager:
     allowPrivilegeEscalation: false
     capabilities:
       drop:
-        - ALL
+      - ALL
     readOnlyRootFilesystem: true
 
   ## Resource limits and requests
