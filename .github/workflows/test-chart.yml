@@ -35,7 +35,7 @@ jobs:
           kind load docker-image ghcr.io/nusnewob/kube-changejob:dev
 
       - name: Install Helm
-        uses: Azure/setup-helm@v4.3.1
+        uses: Azure/setup-helm@v5.0.0
 
       - name: Lint Helm Chart
         run: helm lint --strict ./dist/chart
