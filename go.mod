@@ -3,6 +3,12 @@ module github.com/nusnewob/kube-changejob
 go 1.25.3
 
 require (
+<<<<<<< HEAD
+	github.com/onsi/ginkgo/v2 v2.27.2
+	github.com/onsi/gomega v1.38.2
+	k8s.io/apimachinery v0.35.0
+	k8s.io/client-go v0.35.0
+=======
 	github.com/cyberphone/json-canonicalization v0.0.0-20241213102144-19d51d7fe467
 	github.com/go-logr/logr v1.4.3
 	github.com/onsi/ginkgo/v2 v2.28.1
@@ -12,6 +18,7 @@ require (
 	k8s.io/apimachinery v0.35.3
 	k8s.io/client-go v0.35.3
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
+>>>>>>> tmp-original-31-03-26-00-35
 	sigs.k8s.io/controller-runtime v0.23.3
 )
 
