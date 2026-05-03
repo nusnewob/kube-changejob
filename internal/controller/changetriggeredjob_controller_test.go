@@ -1256,7 +1256,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
 					Cooldown:  &metav1.Duration{Duration: 1 * time.Second},
-					History:   ptr.To(int32(1)),
+					History:   new(int32(1)),
 					JobTemplate: batchv1.JobTemplateSpec{
 						Spec: batchv1.JobSpec{
 							Template: corev1.PodTemplateSpec{
