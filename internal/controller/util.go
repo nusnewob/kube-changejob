@@ -34,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -262,7 +261,7 @@ func (r *ChangeTriggeredJobReconciler) updateStatus(ctx context.Context, changeJ
 		if histories[0].Status.StartTime != nil {
 			latest.Status.LastTriggeredTime = histories[0].Status.StartTime
 		} else {
-			latest.Status.LastTriggeredTime = ptr.To(metav1.Now())
+			latest.Status.LastTriggeredTime = new(metav1.Now())
 		}
 
 		// Update LastJobStatus status

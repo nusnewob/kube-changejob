@@ -384,11 +384,11 @@ func TestChangeTriggeredJobSpecWithDefaults(t *testing.T) {
 			spec: ChangeTriggeredJobSpec{
 				JobTemplate: batchv1.JobTemplateSpec{},
 				Resources:   []ResourceReference{},
-				Condition:   ptrToTriggerCondition(TriggerConditionAll),
+				Condition:   new(TriggerConditionAll),
 				Cooldown:    &metav1.Duration{Duration: 30 * time.Second},
 				History:     ptrToInt32(10),
 			},
-			expectCondition: ptrToTriggerCondition(TriggerConditionAll),
+			expectCondition: new(TriggerConditionAll),
 			expectCooldown:  &metav1.Duration{Duration: 30 * time.Second},
 			expectHistory:   ptrToInt32(10),
 		},
@@ -612,10 +612,13 @@ func TestChangeTriggeredJobConditions(t *testing.T) {
 }
 
 // Helper functions
+//
+//go:fix inline
 func ptrToTriggerCondition(c TriggerCondition) *TriggerCondition {
-	return &c
+	return new(c)
 }
 
+//go:fix inline
 func ptrToInt32(i int32) *int32 {
-	return &i
+	return new(i)
 }

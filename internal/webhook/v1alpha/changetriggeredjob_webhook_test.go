@@ -460,7 +460,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 
 		It("Should deny creation if history is less than 1", func() {
 			By("Creating a ChangeTriggeredJob with history = 0")
-			obj.Spec.History = ptr.To(int32(0))
+			obj.Spec.History = new(int32(0))
 			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
@@ -494,7 +494,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 
 		It("Should admit creation if history is valid", func() {
 			By("Creating a ChangeTriggeredJob with history = 3")
-			obj.Spec.History = ptr.To(int32(3))
+			obj.Spec.History = new(int32(3))
 			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
@@ -878,7 +878,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 
 		It("Should deny negative history values", func() {
 			By("Creating a ChangeTriggeredJob with negative history")
-			obj.Spec.History = ptr.To(int32(-1))
+			obj.Spec.History = new(int32(-1))
 			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
@@ -1366,7 +1366,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 
 		It("Should accept large history values", func() {
 			By("Creating a ChangeTriggeredJob with large history")
-			obj.Spec.History = ptr.To(int32(1000))
+			obj.Spec.History = new(int32(1000))
 			obj.Spec.JobTemplate = batchv1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
