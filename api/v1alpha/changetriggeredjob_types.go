@@ -197,5 +197,5 @@ type ChangeTriggeredJobList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&ChangeTriggeredJob{}, &ChangeTriggeredJobList{})
+	Register(&ChangeTriggeredJob{}, &ChangeTriggeredJobList{})
 }

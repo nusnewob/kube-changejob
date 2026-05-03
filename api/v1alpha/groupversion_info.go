@@ -20,9 +20,18 @@ limitations under the License.
 package v1alpha
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
+
+// Register adds the given objects to SchemeBuilder under SchemeGroupVersion.
+// This is a convenience wrapper matching the old scheme.Builder.Register signature.
+func Register(objects ...runtime.Object) {
+	SchemeBuilder.Register(func(s *runtime.Scheme) error {
+		s.AddKnownTypes(SchemeGroupVersion, objects...)
+		return nil
+	})
+}
 
 var (
 	// SchemeGroupVersion is group version used to register these objects.
@@ -33,7 +42,7 @@ var (
 	GroupVersion = SchemeGroupVersion
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+	SchemeBuilder = runtime.NewSchemeBuilder()
 
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
