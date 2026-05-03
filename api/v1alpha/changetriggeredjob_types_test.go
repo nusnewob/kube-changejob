@@ -386,11 +386,11 @@ func TestChangeTriggeredJobSpecWithDefaults(t *testing.T) {
 				Resources:   []ResourceReference{},
 				Condition:   new(TriggerConditionAll),
 				Cooldown:    &metav1.Duration{Duration: 30 * time.Second},
-				History:     ptrToInt32(10),
+				History:     new(int32(10)),
 			},
 			expectCondition: new(TriggerConditionAll),
 			expectCooldown:  &metav1.Duration{Duration: 30 * time.Second},
-			expectHistory:   ptrToInt32(10),
+			expectHistory:   new(int32(10)),
 		},
 		{
 			name: "without optional fields",
@@ -609,16 +609,4 @@ func TestChangeTriggeredJobConditions(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper functions
-//
-//go:fix inline
-func ptrToTriggerCondition(c TriggerCondition) *TriggerCondition {
-	return new(c)
-}
-
-//go:fix inline
-func ptrToInt32(i int32) *int32 {
-	return new(i)
 }
