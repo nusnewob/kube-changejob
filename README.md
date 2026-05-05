@@ -461,6 +461,8 @@ kubectl delete -k github.com/nusnewob/kube-changejob/config/default
 
 ## License
 
+<<<<<<< HEAD
+=======
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
@@ -476,3 +478,4 @@ Built with:
 - **Author**: Bowen Sun
 - **Repository**: [github.com/nusnewob/kube-changejob](https://github.com/nusnewob/kube-changejob)
 - **Issues**: [GitHub Issues](https://github.com/nusnewob/kube-changejob/issues)
+>>>>>>> tmp-original-05-05-26-00-43

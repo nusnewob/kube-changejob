@@ -1,3 +1,5 @@
+<<<<<<< HEAD
+=======
 /*
 Copyright 2025 Bowen Sun.
 
@@ -14,6 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+>>>>>>> tmp-original-05-05-26-00-43
 package main
 
 import (
@@ -260,7 +263,7 @@ func main() {
 		Config: cfg,
 		Log:    ctrl.Log.WithName("controllers").WithName("ChangeTriggeredJob"),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "Failed to create controller", "controller", "ChangeTriggeredJob")
+		setupLog.Error(err, "Failed to create controller", "controller", "changetriggeredjob")
 		os.Exit(1)
 	}
 	// nolint:goconst

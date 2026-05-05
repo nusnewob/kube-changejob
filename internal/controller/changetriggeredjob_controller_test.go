@@ -1,6 +1,18 @@
 package controller
 
 import (
+<<<<<<< HEAD
+	. "github.com/onsi/ginkgo/v2"
+)
+
+var _ = Describe("ChangeTriggeredJob Controller", func() {
+	Context("When reconciling a resource", func() {
+
+		It("should successfully reconcile the resource", func() {
+
+			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
+			// Example: If you expect a certain status condition after reconciliation, verify it here.
+=======
 	"context"
 	"fmt"
 	"time"
@@ -1810,6 +1822,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 				}
 				return len(jobList.Items)
 			}, time.Second*10, time.Millisecond*500).Should(Equal(1))
+>>>>>>> tmp-original-05-05-26-00-43
 		})
 	})
 })
