@@ -14,5 +14,5 @@ roleRef:
   name: {{ include "kube-changejob.resourceName" (dict "suffix" "leader-election-role" "context" $) }}
 subjects:
 - kind: ServiceAccount
-  name: {{ include "kube-changejob.resourceName" (dict "suffix" "controller-manager" "context" $) }}
+  name: {{ include "kube-changejob.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
