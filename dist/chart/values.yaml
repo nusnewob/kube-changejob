@@ -9,19 +9,6 @@
 ## Configure the controller manager deployment
 ##
 manager:
-<<<<<<< HEAD
-  ## Set to false to skip manager installation
-  ##
-  enabled: true
-
-  replicas: 1
-
-  image:
-    repository: controller
-    ## Image tag (defaults to Chart.appVersion if not set)
-    ##
-    # tag: ""
-=======
   # Controller config
   config:
     # pollInterval: 60s # Controller polling interval
@@ -36,7 +23,6 @@ manager:
   image:
     repository: ghcr.io/nusnewob/kube-changejob
     # tag: latest
->>>>>>> tmp-original-05-05-26-00-43
     pullPolicy: IfNotPresent
 
   ## Arguments
@@ -133,44 +119,9 @@ webhook:
 
 ## RBAC configuration
 ##
-<<<<<<< HEAD
-rbac:
-  ## RBAC resource scope
-  ## - false (default): ClusterRole/ClusterRoleBinding (all namespaces)
-  ## - true: Role/RoleBinding (release namespace only)
-  ##
-  namespaced: false
-
-  ## Helper roles for CRD management (admin/editor/viewer)
-  ##
-  helpers:
-    ## Install convenience admin/editor/viewer roles for CRDs
-    ##
-    enable: false
-
-## ServiceAccount configuration
-##
-serviceAccount:
-  # Install default ServiceAccount provided
-  enable: true
-
-  ## Existing ServiceAccount name (only when enable=false)
-  ## Note: When enable=true, respects nameOverride/fullnameOverride
-  ##
-  # name: ""
-
-  ## Custom ServiceAccount annotations
-  ##
-  # annotations: {}
-
-  ## Custom ServiceAccount labels
-  ##
-  # labels: {}
-=======
 rbacHelpers:
   # Install convenience admin/editor/viewer roles for CRDs
   enable: true
->>>>>>> tmp-original-05-05-26-00-43
 
 ## Custom Resource Definitions
 ##

@@ -1,10 +1,6 @@
 module github.com/nusnewob/kube-changejob
 
-<<<<<<< HEAD
-go 1.25.7
-=======
 go 1.26.0
->>>>>>> tmp-original-05-05-26-00-43
 
 require (
 	github.com/cyberphone/json-canonicalization v0.0.0-20241213102144-19d51d7fe467

@@ -1,8 +1,6 @@
 //go:build e2e
 // +build e2e
 
-<<<<<<< HEAD
-=======
 /*
 Copyright 2025 Bowen Sun.
 
@@ -19,7 +17,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
->>>>>>> tmp-original-05-05-26-00-43
 package e2e
 
 import (
@@ -228,48 +225,6 @@ var _ = Describe("E2E Tests", Ordered, func() {
 	It("should ensure the metrics endpoint is serving metrics", func() {
 		ctx := context.Background()
 
-<<<<<<< HEAD
-	Context("Manager", func() {
-		It("should run successfully", func() {
-			By("validating that the controller-manager pod is running as expected")
-			verifyControllerUp := func(g Gomega) {
-				By("getting the name of the controller-manager pod")
-				cmd := exec.Command("kubectl", "get",
-					"pods", "-l", "control-plane=controller-manager",
-					"-o", "go-template={{ range .items }}"+
-						"{{ if not .metadata.deletionTimestamp }}"+
-						"{{ .metadata.name }}"+
-						"{{ \"\\n\" }}{{ end }}{{ end }}",
-					"-n", namespace,
-				)
-
-				podOutput, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred(), "Failed to retrieve controller-manager pod information")
-				podNames := utils.GetNonEmptyLines(podOutput)
-				g.Expect(podNames).To(HaveLen(1), "expected 1 controller pod running")
-				controllerPodName = podNames[0]
-				g.Expect(controllerPodName).To(ContainSubstring("controller-manager"))
-
-				By("validating the pod's status")
-				cmd = exec.Command("kubectl", "get",
-					"pods", controllerPodName, "-o", "jsonpath={.status.phase}",
-					"-n", namespace,
-				)
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).To(Equal("Running"), "Incorrect controller-manager pod status")
-			}
-			Eventually(verifyControllerUp).Should(Succeed())
-		})
-
-		It("should ensure the metrics endpoint is serving metrics", func() {
-			By("creating a ClusterRoleBinding for the service account to allow access to metrics")
-			cmd := exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
-				"--clusterrole=kube-changejob-metrics-reader",
-				fmt.Sprintf("--serviceaccount=%s:%s", namespace, serviceAccountName),
-			)
-			_, err := utils.Run(cmd)
-=======
 		By("creating a ClusterRoleBinding for the service account to allow access to metrics")
 		crb := &rbacv1.ClusterRoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
@@ -290,7 +245,6 @@ var _ = Describe("E2E Tests", Ordered, func() {
 		}
 		err := k8sClient.Create(ctx, crb)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
->>>>>>> tmp-original-05-05-26-00-43
 			Expect(err).NotTo(HaveOccurred(), "Failed to create ClusterRoleBinding")
 		}
 
@@ -1694,47 +1648,19 @@ var _ = Describe("E2E Tests", Ordered, func() {
 func serviceAccountToken() (string, error) {
 	ctx := context.Background()
 
-<<<<<<< HEAD
-	By("creating temporary file to store the token request")
-	secretName := fmt.Sprintf("%s-token-request", serviceAccountName)
-	tokenRequestFile := filepath.Join("/tmp", secretName)
-	err := os.WriteFile(tokenRequestFile, []byte(tokenRequestRawString), os.FileMode(0o644))
-	if err != nil {
-		return "", err
-=======
 	tokenRequest := &authenticationv1.TokenRequest{
 		Spec: authenticationv1.TokenRequestSpec{
 			ExpirationSeconds: ptrInt64(3600),
 		},
->>>>>>> tmp-original-05-05-26-00-43
 	}
 
 	var token string
 	verifyTokenCreation := func(g Gomega) {
-<<<<<<< HEAD
-		By("executing kubectl command to create the token")
-		cmd := exec.Command("kubectl", "create", "--raw", fmt.Sprintf(
-			"/api/v1/namespaces/%s/serviceaccounts/%s/token",
-			namespace,
-			serviceAccountName,
-		), "-f", tokenRequestFile)
-
-		output, err := cmd.CombinedOutput()
-		g.Expect(err).NotTo(HaveOccurred())
-
-		By("parsing the JSON output to extract the token")
-		var token tokenRequest
-		err = json.Unmarshal(output, &token)
-		g.Expect(err).NotTo(HaveOccurred())
-
-		out = token.Status.Token
-=======
 		result, err := clientset.CoreV1().ServiceAccounts(namespace).CreateToken(
 			ctx, serviceAccountName, tokenRequest, metav1.CreateOptions{})
 		g.Expect(err).NotTo(HaveOccurred())
 		token = result.Status.Token
 		g.Expect(token).NotTo(BeEmpty())
->>>>>>> tmp-original-05-05-26-00-43
 	}
 	Eventually(verifyTokenCreation).Should(Succeed())
 

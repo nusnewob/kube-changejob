@@ -1,8 +1,6 @@
 //go:build e2e
 // +build e2e
 
-<<<<<<< HEAD
-=======
 /*
 Copyright 2025 Bowen Sun.
 
@@ -19,7 +17,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
->>>>>>> tmp-original-05-05-26-00-43
 package e2e
 
 import (
@@ -53,18 +50,9 @@ var (
 	isCertManagerAlreadyInstalled = false
 )
 
-<<<<<<< HEAD
-// TestE2E runs the e2e test suite to validate the solution in an isolated environment.
-// The default setup requires Kind and CertManager.
-//
-// To enable kubectl kuberc (use custom kubectl configurations), set: KUBECTL_KUBERC=true
-// By default, kuberc is disabled to ensure consistent test behavior across different environments.
-// To skip CertManager installation, set: CERT_MANAGER_INSTALL_SKIP=true
-=======
 // TestE2E runs the end-to-end (e2e) test suite for the project. These tests execute in an isolated,
 // temporary environment to validate project changes with the purpose of being used in CI jobs.
 // The default setup requires Kind and builds/loads the Manager Docker image locally.
->>>>>>> tmp-original-05-05-26-00-43
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	_, _ = fmt.Fprintf(GinkgoWriter, "Starting kube-changejob e2e test suite\n")

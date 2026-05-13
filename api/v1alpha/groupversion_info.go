@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 /*
 Copyright 2025 Bowen Sun.
 
@@ -16,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
->>>>>>> tmp-original-05-05-26-00-43
 // Package v1alpha contains API Schema definitions for the triggers v1alpha API group.
 // +kubebuilder:object:generate=true
 // +groupName=triggers.changejob.dev
