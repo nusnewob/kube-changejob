@@ -260,7 +260,7 @@ func main() {
 		Config: cfg,
 		Log:    ctrl.Log.WithName("controllers").WithName("ChangeTriggeredJob"),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "Failed to create controller", "controller", "ChangeTriggeredJob")
+		setupLog.Error(err, "Failed to create controller", "controller", "changetriggeredjob")
 		os.Exit(1)
 	}
 	// nolint:goconst

@@ -321,7 +321,7 @@ func TestConstantValues(t *testing.T) {
 		{
 			name:     "certmanager version",
 			value:    certmanagerVersion,
-			expected: "v1.20.0",
+			expected: "v1.20.2",
 		},
 		{
 			name:     "default kind binary",
