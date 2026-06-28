@@ -199,8 +199,10 @@ func TestSchemeBuilderNotNil(t *testing.T) {
 		t.Error("SchemeBuilder should not be nil")
 	}
 
-	if SchemeBuilder.GroupVersion != GroupVersion {
-		t.Errorf("SchemeBuilder.GroupVersion should be %v, got %v", GroupVersion, SchemeBuilder.GroupVersion)
+	// GroupVersion is declared at package level in groupversion_info.go;
+	// runtime.SchemeBuilder does not carry a GroupVersion field.
+	if GroupVersion != SchemeGroupVersion {
+		t.Errorf("GroupVersion should be %v, got %v", SchemeGroupVersion, GroupVersion)
 	}
 }
 
