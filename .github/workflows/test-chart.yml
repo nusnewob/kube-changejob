@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clone the code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
@@ -35,7 +35,7 @@ jobs:
           kind load docker-image ghcr.io/nusnewob/kube-changejob:dev
 
       - name: Install Helm
-        uses: Azure/setup-helm@v5.0.0
+        uses: Azure/setup-helm@v5.0.1
 
       - name: Lint Helm Chart
         run: helm lint --strict ./dist/chart

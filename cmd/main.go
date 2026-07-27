@@ -52,6 +52,18 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+const (
+	logLevelDefault      = "info"
+	logFormatDefault     = "text"
+	logFormatJSON        = "json"
+	timestampEpoch       = "epoch"
+	timestampMillis      = "millis"
+	timestampNano        = "nano"
+	timestampISO8601     = "iso8601"
+	timestampRFC3339     = "rfc3339"
+	timestampRFC3339Nano = "rfc3339nano"
+)
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
@@ -94,19 +106,20 @@ func main() {
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 
 	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
-	flag.StringVar(&logLevel, "log-level", "info", "Set the log level (debug, info, warn, error, panic, fatal or "+
-		"any integer value > 0 which corresponds to custom debug levels of increasing verbosity)")
-	flag.StringVar(&logFormat, "log-format", "text", "Set the log format (json or text)")
-	flag.StringVar(&logTimestamp, "log-timestamp", "rfc3339",
+	flag.StringVar(&logLevel, "log-level", logLevelDefault,
+		"Set the log level (debug, info, warn, error, panic, fatal or "+
+			"any integer value > 0 which corresponds to custom debug levels of increasing verbosity)")
+	flag.StringVar(&logFormat, "log-format", logFormatDefault, "Set the log format (json or text)")
+	flag.StringVar(&logTimestamp, "log-timestamp", timestampRFC3339,
 		"Set the log timestamp format (epoch, millis, nano, iso8601, rfc3339 or rfc3339nano)")
 
 	encCfg := zap.NewProductionEncoderConfig()
-	if logFormat == "text" {
+	if logFormat == logFormatDefault {
 		encCfg = zap.NewDevelopmentEncoderConfig()
 	}
 
 	encoder := zapcore.NewConsoleEncoder(encCfg)
-	if logFormat == "json" {
+	if logFormat == logFormatJSON {
 		encoder = zapcore.NewJSONEncoder(encCfg)
 	}
 
@@ -119,17 +132,17 @@ func main() {
 	}
 
 	switch logTimestamp {
-	case "epoch":
+	case timestampEpoch:
 		encCfg.EncodeTime = zapcore.EpochTimeEncoder
-	case "millis":
+	case timestampMillis:
 		encCfg.EncodeTime = zapcore.EpochMillisTimeEncoder
-	case "nano":
+	case timestampNano:
 		encCfg.EncodeTime = zapcore.EpochNanosTimeEncoder
-	case "iso8601":
+	case timestampISO8601:
 		encCfg.EncodeTime = zapcore.ISO8601TimeEncoder
-	case "rfc3339":
+	case timestampRFC3339:
 		encCfg.EncodeTime = zapcore.RFC3339TimeEncoder
-	case "rfc3339nano":
+	case timestampRFC3339Nano:
 		encCfg.EncodeTime = zapcore.RFC3339NanoTimeEncoder
 	default:
 		encCfg.EncodeTime = zapcore.RFC3339TimeEncoder
@@ -197,7 +210,7 @@ func main() {
 
 	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.
 	// More info:
-	// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.23.3/pkg/metrics/server
+	// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.24.1/pkg/metrics/server
 	// - https://book.kubebuilder.io/reference/metrics.html
 	metricsServerOptions := metricsserver.Options{
 		BindAddress:   metricsAddr,
@@ -209,7 +222,7 @@ func main() {
 		// FilterProvider is used to protect the metrics endpoint with authn/authz.
 		// These configurations ensure that only authorized users and service accounts
 		// can access the metrics endpoint. The RBAC are configured in 'config/rbac/kustomization.yaml'. More info:
-		// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.23.3/pkg/metrics/filters#WithAuthenticationAndAuthorization
+		// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.24.1/pkg/metrics/filters#WithAuthenticationAndAuthorization
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
 
