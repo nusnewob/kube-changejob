@@ -192,7 +192,6 @@ webhook:
 ## Requires prometheus-operator to be installed in the cluster.
 ##
 prometheus:
-<<<<<<< HEAD
   enabled: false
 
 ## Network policies for controlling traffic flow.
@@ -200,7 +199,3 @@ prometheus:
 ##
 networkPolicy:
   enabled: false
-
-=======
-  enable: false
->>>>>>> tmp-original-16-06-26-01-06
