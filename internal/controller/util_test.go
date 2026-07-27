@@ -31,10 +31,6 @@ import (
 )
 
 var _ = Describe("Poller", func() {
-	const testValue1 = "value1"
-	const testValue2 = "value2"
-	const testValue3 = "value3"
-
 	var (
 		poller    Poller
 		ctx       context.Context
@@ -57,8 +53,8 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"key1": testValue1,
-					"key2": testValue2,
+					testMapKey1: testValue1,
+					testMapKey2: testValue2,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -66,10 +62,10 @@ var _ = Describe("Poller", func() {
 			By("Polling the ConfigMap")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
-				Fields:     []string{"data.key1"},
+				Fields:     []string{testDataKey1},
 			}
 
 			status, err := poller.Poll(ctx, ref)
@@ -77,11 +73,11 @@ var _ = Describe("Poller", func() {
 
 			By("Verifying the status")
 			Expect(status.APIVersion).To(Equal("v1"))
-			Expect(status.Kind).To(Equal("ConfigMap"))
+			Expect(status.Kind).To(Equal(testKindConfigMap))
 			Expect(status.Name).To(Equal(cmName))
 			Expect(status.Namespace).To(Equal(namespace))
 			Expect(status.Fields).To(HaveLen(1))
-			Expect(status.Fields[0].Field).To(Equal("data.key1"))
+			Expect(status.Fields[0].Field).To(Equal(testDataKey1))
 			Expect(status.Fields[0].LastHash).NotTo(BeEmpty())
 
 			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
@@ -97,7 +93,7 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"key1": testValue1,
+					testMapKey1: testValue1,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -105,10 +101,10 @@ var _ = Describe("Poller", func() {
 			By("First poll")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
-				Fields:     []string{"data.key1"},
+				Fields:     []string{testDataKey1},
 			}
 
 			status1, err := poller.Poll(ctx, ref)
@@ -117,7 +113,7 @@ var _ = Describe("Poller", func() {
 
 			By("Updating the ConfigMap")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: namespace}, cm)).Should(Succeed())
-			cm.Data["key1"] = testValue2
+			cm.Data[testMapKey1] = testValue2
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			By("Second poll")
@@ -141,9 +137,9 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"key1": testValue1,
-					"key2": testValue2,
-					"key3": testValue3,
+					testMapKey1: testValue1,
+					testMapKey2: testValue2,
+					"key3":      testValue3,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -151,10 +147,10 @@ var _ = Describe("Poller", func() {
 			By("Polling multiple fields")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
-				Fields:     []string{"data.key1", "data.key2"},
+				Fields:     []string{testDataKey1, "data.key2"},
 			}
 
 			status, err := poller.Poll(ctx, ref)
@@ -166,7 +162,7 @@ var _ = Describe("Poller", func() {
 			for _, f := range status.Fields {
 				fieldMap[f.Field] = f.LastHash
 			}
-			Expect(fieldMap).To(HaveKey("data.key1"))
+			Expect(fieldMap).To(HaveKey(testDataKey1))
 			Expect(fieldMap).To(HaveKey("data.key2"))
 
 			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
@@ -182,7 +178,7 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"other-key": "value",
+					"other-key": testMapValue,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -190,7 +186,7 @@ var _ = Describe("Poller", func() {
 			By("Polling a non-existent field")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
 				Fields:     []string{"data.missing-key"},
@@ -215,8 +211,8 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"key1": testValue1,
-					"key2": testValue2,
+					testMapKey1: testValue1,
+					testMapKey2: testValue2,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -224,7 +220,7 @@ var _ = Describe("Poller", func() {
 			By("Polling with wildcard selector")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
 				Fields:     []string{"*"},
@@ -240,7 +236,7 @@ var _ = Describe("Poller", func() {
 
 			By("Updating the ConfigMap")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: namespace}, cm)).Should(Succeed())
-			cm.Data["key1"] = testValue3
+			cm.Data[testMapKey1] = testValue3
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			By("Polling again with wildcard")
@@ -258,8 +254,8 @@ var _ = Describe("Poller", func() {
 		It("Should hash objects consistently", func() {
 			By("Hashing the same object twice")
 			obj := map[string]any{
-				"key1": testValue1,
-				"key2": 123,
+				testMapKey1: testValue1,
+				testMapKey2: 123,
 			}
 
 			hash1, err := HashObject(obj)
@@ -274,8 +270,8 @@ var _ = Describe("Poller", func() {
 
 		It("Should produce different hashes for different objects", func() {
 			By("Hashing two different objects")
-			obj1 := map[string]any{"key": "value1"}
-			obj2 := map[string]any{"key": "value2"}
+			obj1 := map[string]any{testMapKey: testValue1}
+			obj2 := map[string]any{testMapKey: testValue2}
 
 			hash1, err := HashObject(obj1)
 			Expect(err).NotTo(HaveOccurred())
@@ -315,7 +311,7 @@ var _ = Describe("Poller", func() {
 			By("Hashing nested objects")
 			obj := map[string]any{
 				"outer": map[string]any{
-					"inner": "value",
+					"inner": testMapValue,
 				},
 			}
 
@@ -335,7 +331,7 @@ var _ = Describe("Poller", func() {
 
 		It("Should validate namespaced resource without namespace should fail", func() {
 			By("Validating ConfigMap (namespaced) without namespace parameter")
-			_, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "v1", "ConfigMap", "")
+			_, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "v1", testKindConfigMap, "")
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("namespace is required"))
 		})
@@ -350,15 +346,15 @@ var _ = Describe("Poller", func() {
 
 		It("Should validate valid namespaced resource", func() {
 			By("Validating ConfigMap with namespace parameter")
-			gvk, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "v1", "ConfigMap", "default")
+			gvk, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "v1", testKindConfigMap, "default")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(gvk).NotTo(BeNil())
-			Expect(gvk.Kind).To(Equal("ConfigMap"))
+			Expect(gvk.Kind).To(Equal(testKindConfigMap))
 		})
 
 		It("Should fail for invalid APIVersion", func() {
 			By("Validating with malformed APIVersion")
-			_, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "invalid//version", "ConfigMap", "default")
+			_, err := ValidateGVK(ctx, k8sClient.RESTMapper(), "invalid//version", testKindConfigMap, "default")
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid apiVersion"))
 		})
@@ -382,8 +378,8 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"key1": testValue1,
-					"key2": testValue2,
+					testMapKey1: testValue1,
+					testMapKey2: testValue2,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -391,10 +387,10 @@ var _ = Describe("Poller", func() {
 			By("First poll with both fields")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
-				Fields:     []string{"data.key1", "data.key2"},
+				Fields:     []string{testDataKey1, "data.key2"},
 			}
 
 			status1, err := poller.Poll(ctx, ref)
@@ -403,7 +399,7 @@ var _ = Describe("Poller", func() {
 
 			By("Deleting key1 from ConfigMap")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: namespace}, cm)).Should(Succeed())
-			delete(cm.Data, "key1")
+			delete(cm.Data, testMapKey1)
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			By("Second poll after field deletion")
@@ -441,7 +437,7 @@ var _ = Describe("Poller", func() {
 			By("Polling with all 50 fields")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
 				Fields:     fields,
@@ -477,7 +473,7 @@ var _ = Describe("Poller", func() {
 			By("Polling for a non-existent field")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
 				Fields:     []string{"data.missing"},
@@ -505,7 +501,7 @@ var _ = Describe("Poller", func() {
 			By("Polling with wildcard")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
 				Fields:     []string{"*"},
@@ -524,7 +520,7 @@ var _ = Describe("Poller", func() {
 			By("Polling a resource that doesn't exist")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       "non-existent-cm",
 				Namespace:  namespace,
 			}
@@ -537,7 +533,7 @@ var _ = Describe("Poller", func() {
 			By("Polling with invalid APIVersion")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "invalid//version",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       "test-cm",
 				Namespace:  namespace,
 			}
@@ -569,7 +565,7 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"nested.key": "value",
+					"nested.key": testMapValue,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -577,7 +573,7 @@ var _ = Describe("Poller", func() {
 			By("Polling with nested field path")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
 				Fields:     []string{"data.nested.key"}, // This won't match because key is "nested.key" not nested path
@@ -600,8 +596,8 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"key1": "value1",
-					"key2": "value2",
+					testMapKey1: testValue1,
+					testMapKey2: testValue2,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -609,10 +605,10 @@ var _ = Describe("Poller", func() {
 			By("Polling with both wildcard and specific field")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
-				Fields:     []string{"*", "data.key1"},
+				Fields:     []string{"*", testDataKey1},
 			}
 
 			status, err := poller.Poll(ctx, ref)
@@ -625,7 +621,7 @@ var _ = Describe("Poller", func() {
 				fieldMap[f.Field] = f.LastHash
 			}
 			Expect(fieldMap).To(HaveKey("*"))
-			Expect(fieldMap).To(HaveKey("data.key1"))
+			Expect(fieldMap).To(HaveKey(testDataKey1))
 
 			Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
 		})
@@ -640,7 +636,7 @@ var _ = Describe("Poller", func() {
 					Namespace: namespace,
 				},
 				Data: map[string]string{
-					"key": `{"json": "value", "number": 123}`,
+					testMapKey: `{"json": "value", "number": 123}`,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -648,7 +644,7 @@ var _ = Describe("Poller", func() {
 			By("Polling the field")
 			ref := triggersv1alpha.ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       cmName,
 				Namespace:  namespace,
 				Fields:     []string{"data.key"},

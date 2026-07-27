@@ -9,7 +9,15 @@ import (
 )
 
 const (
-	jsonFormat = "json"
+	jsonFormat          = "json"
+	defaultPollInterval = "30s"
+	logLevelInfo        = "info"
+	logLevelDebug       = "debug"
+	logLevelWarn        = "warn"
+	timestampEpochStr   = "epoch"
+	invalidValue        = "invalid"
+	defaultCertName     = "tls.crt"
+	defaultKeyName      = "tls.key"
 )
 
 func TestDefaultPollInterval(t *testing.T) {
@@ -29,7 +37,7 @@ func TestEnvironmentVariableOverride(t *testing.T) {
 	}{
 		{
 			name:        "valid 30s",
-			envValue:    "30s",
+			envValue:    defaultPollInterval,
 			expected:    30 * time.Second,
 			shouldParse: true,
 		},
@@ -47,7 +55,7 @@ func TestEnvironmentVariableOverride(t *testing.T) {
 		},
 		{
 			name:        "invalid value",
-			envValue:    "invalid",
+			envValue:    invalidValue,
 			expected:    60 * time.Second, // should keep default
 			shouldParse: false,
 		},
@@ -143,17 +151,17 @@ func TestLoggingDefaults(t *testing.T) {
 		{
 			name:     "default log level",
 			flagName: "log-level",
-			expected: "info",
+			expected: logLevelInfo,
 		},
 		{
 			name:     "default log format",
 			flagName: "log-format",
-			expected: "text",
+			expected: logFormatDefault,
 		},
 		{
 			name:     "default log timestamp",
 			flagName: "log-timestamp",
-			expected: "rfc3339",
+			expected: timestampRFC3339,
 		},
 	}
 
@@ -162,19 +170,19 @@ func TestLoggingDefaults(t *testing.T) {
 			// These would be the default values set in main.go
 			var logLevel, logFormat, logTimestamp string
 			if tt.flagName == "log-level" {
-				logLevel = "info"
+				logLevel = logLevelInfo
 				if logLevel != tt.expected {
 					t.Errorf("Expected %s to be %s, got %s", tt.flagName, tt.expected, logLevel)
 				}
 			}
 			if tt.flagName == "log-format" {
-				logFormat = "text"
+				logFormat = logFormatDefault
 				if logFormat != tt.expected {
 					t.Errorf("Expected %s to be %s, got %s", tt.flagName, tt.expected, logFormat)
 				}
 			}
 			if tt.flagName == "log-timestamp" {
-				logTimestamp = "rfc3339"
+				logTimestamp = timestampRFC3339
 				if logTimestamp != tt.expected {
 					t.Errorf("Expected %s to be %s, got %s", tt.flagName, tt.expected, logTimestamp)
 				}
@@ -191,17 +199,17 @@ func TestLogLevelParsing(t *testing.T) {
 	}{
 		{
 			name:      "valid debug level",
-			logLevel:  "debug",
+			logLevel:  logLevelDebug,
 			shouldErr: false,
 		},
 		{
 			name:      "valid info level",
-			logLevel:  "info",
+			logLevel:  logLevelInfo,
 			shouldErr: false,
 		},
 		{
 			name:      "valid warn level",
-			logLevel:  "warn",
+			logLevel:  logLevelWarn,
 			shouldErr: false,
 		},
 		{
@@ -221,7 +229,7 @@ func TestLogLevelParsing(t *testing.T) {
 		},
 		{
 			name:      "invalid level",
-			logLevel:  "invalid",
+			logLevel:  invalidValue,
 			shouldErr: true,
 		},
 		{
@@ -235,12 +243,12 @@ func TestLogLevelParsing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Simulate log level validation
 			validLevels := map[string]bool{
-				"debug": true,
-				"info":  true,
-				"warn":  true,
-				"error": true,
-				"panic": true,
-				"fatal": true,
+				logLevelDebug: true,
+				logLevelInfo:  true,
+				logLevelWarn:  true,
+				"error":       true,
+				"panic":       true,
+				"fatal":       true,
 			}
 
 			_, valid := validLevels[tt.logLevel]
@@ -269,7 +277,7 @@ func TestLogFormatValidation(t *testing.T) {
 		},
 		{
 			name:    "text format",
-			format:  "text",
+			format:  logFormatDefault,
 			isValid: true,
 			useJSON: false,
 		},
@@ -300,7 +308,7 @@ func TestTimestampFormatValidation(t *testing.T) {
 	}{
 		{
 			name:      "epoch format",
-			timestamp: "epoch",
+			timestamp: timestampEpochStr,
 			isValid:   true,
 		},
 		{
@@ -320,17 +328,17 @@ func TestTimestampFormatValidation(t *testing.T) {
 		},
 		{
 			name:      "rfc3339 format",
-			timestamp: "rfc3339",
+			timestamp: timestampRFC3339,
 			isValid:   true,
 		},
 		{
 			name:      "rfc3339nano format",
-			timestamp: "rfc3339nano",
+			timestamp: timestampRFC3339Nano,
 			isValid:   true,
 		},
 		{
 			name:      "invalid format defaults to rfc3339",
-			timestamp: "invalid",
+			timestamp: invalidValue,
 			isValid:   false,
 		},
 	}
@@ -339,12 +347,12 @@ func TestTimestampFormatValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Simulate timestamp format validation from main.go
 			validFormats := map[string]bool{
-				"epoch":       true,
-				"millis":      true,
-				"nano":        true,
-				"iso8601":     true,
-				"rfc3339":     true,
-				"rfc3339nano": true,
+				timestampEpochStr:    true,
+				"millis":             true,
+				"nano":               true,
+				"iso8601":            true,
+				timestampRFC3339:     true,
+				timestampRFC3339Nano: true,
 			}
 
 			_, valid := validFormats[tt.timestamp]
@@ -367,12 +375,12 @@ func TestDebugFlagBehavior(t *testing.T) {
 		{
 			name:          "debug enabled",
 			debug:         true,
-			expectedLevel: "debug",
+			expectedLevel: logLevelDebug,
 		},
 		{
 			name:          "debug disabled",
 			debug:         false,
-			expectedLevel: "info",
+			expectedLevel: logLevelInfo,
 		},
 	}
 
@@ -381,9 +389,9 @@ func TestDebugFlagBehavior(t *testing.T) {
 			// Simulate debug flag behavior from main.go
 			var logLevel string
 			if tt.debug {
-				logLevel = "debug"
+				logLevel = logLevelDebug
 			} else {
-				logLevel = "info"
+				logLevel = logLevelInfo
 			}
 
 			if logLevel != tt.expectedLevel {
@@ -406,27 +414,27 @@ func TestLoggingConfiguration(t *testing.T) {
 		{
 			name:        "production config",
 			debug:       false,
-			logLevel:    "info",
+			logLevel:    logLevelInfo,
 			logFormat:   jsonFormat,
-			logTime:     "rfc3339",
+			logTime:     timestampRFC3339,
 			expectDebug: false,
 			expectJSON:  true,
 		},
 		{
 			name:        "development config",
 			debug:       true,
-			logLevel:    "debug",
-			logFormat:   "text",
-			logTime:     "rfc3339nano",
+			logLevel:    logLevelDebug,
+			logFormat:   logFormatDefault,
+			logTime:     timestampRFC3339Nano,
 			expectDebug: true,
 			expectJSON:  false,
 		},
 		{
 			name:        "mixed config",
 			debug:       false,
-			logLevel:    "warn",
+			logLevel:    logLevelWarn,
 			logFormat:   jsonFormat,
-			logTime:     "epoch",
+			logTime:     timestampEpochStr,
 			expectDebug: false,
 			expectJSON:  true,
 		},
@@ -529,8 +537,8 @@ func TestTLSCertificateConfiguration(t *testing.T) {
 		{
 			name:        "valid webhook certificate",
 			certPath:    "/etc/certs",
-			certName:    "tls.crt",
-			certKey:     "tls.key",
+			certName:    defaultCertName,
+			certKey:     defaultKeyName,
 			expectValid: true,
 		},
 		{
@@ -543,15 +551,15 @@ func TestTLSCertificateConfiguration(t *testing.T) {
 		{
 			name:        "default certificate names",
 			certPath:    "/certs",
-			certName:    "tls.crt",
-			certKey:     "tls.key",
+			certName:    defaultCertName,
+			certKey:     defaultKeyName,
 			expectValid: true,
 		},
 		{
 			name:        "empty path uses auto-generated",
 			certPath:    "",
-			certName:    "tls.crt",
-			certKey:     "tls.key",
+			certName:    defaultCertName,
+			certKey:     defaultKeyName,
 			expectValid: true,
 		},
 	}
@@ -702,13 +710,13 @@ func TestMultipleEnvironmentVariablesPriority(t *testing.T) {
 	}{
 		{
 			name:           "flag overrides env",
-			envValue:       "30s",
+			envValue:       defaultPollInterval,
 			flagValue:      45 * time.Second,
 			expectedResult: 45 * time.Second,
 		},
 		{
 			name:           "env used when no flag",
-			envValue:       "30s",
+			envValue:       defaultPollInterval,
 			flagValue:      0,
 			expectedResult: 30 * time.Second,
 		},
@@ -761,15 +769,15 @@ func TestCertificatePathValidation(t *testing.T) {
 		{
 			name:        "all cert fields provided",
 			certPath:    "/etc/certs",
-			certName:    "tls.crt",
-			keyName:     "tls.key",
+			certName:    defaultCertName,
+			keyName:     defaultKeyName,
 			expectValid: true,
 		},
 		{
 			name:        "missing cert path",
 			certPath:    "",
-			certName:    "tls.crt",
-			keyName:     "tls.key",
+			certName:    defaultCertName,
+			keyName:     defaultKeyName,
 			expectValid: true, // Empty path is valid (auto-generated)
 		},
 		{
