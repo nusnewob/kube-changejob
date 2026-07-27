@@ -19,6 +19,7 @@ package v1alpha
 import (
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -197,5 +198,8 @@ type ChangeTriggeredJobList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&ChangeTriggeredJob{}, &ChangeTriggeredJobList{})
+	SchemeBuilder.Register(func(s *runtime.Scheme) error {
+		s.AddKnownTypes(SchemeGroupVersion, &ChangeTriggeredJob{}, &ChangeTriggeredJobList{})
+		return nil
+	})
 }

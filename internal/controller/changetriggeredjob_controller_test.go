@@ -23,11 +23,6 @@ import (
 )
 
 var _ = Describe("ChangeTriggeredJob Controller", func() {
-	const (
-		testValue2       = "value2"
-		testValueChanged = "changed"
-	)
-
 	Context("When reconciling a ChangeTriggeredJob", func() {
 		var (
 			ctjName      string
@@ -51,7 +46,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			// Clean up Jobs owned by this CTJ (using label selector)
 			jobList := &batchv1.JobList{}
-			if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName}); err == nil {
+			if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{DefaultLabel: ctjName}); err == nil {
 				for i := range jobList.Items {
 					job := &jobList.Items[i]
 					// Remove finalizers to speed up deletion
@@ -92,7 +87,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 				// Check jobs owned by this CTJ are gone
 				jobList := &batchv1.JobList{}
-				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName}); err == nil && len(jobList.Items) > 0 {
+				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{DefaultLabel: ctjName}); err == nil && len(jobList.Items) > 0 {
 					return false
 				}
 
@@ -111,10 +106,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
@@ -126,11 +121,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -149,7 +144,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Namespace: ctjNamespace,
 				},
 				Data: map[string]string{
-					"config": "initial-value",
+					testFieldConfig: testValueInitialValue,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -174,7 +169,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Updating the watched field")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = "updated-value-1"
+			cm.Data[testFieldConfig] = "updated-value-1"
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			By("Second reconciliation - first change triggers job")
@@ -194,7 +189,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Updating the watched field again")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = "another-update"
+			cm.Data[testFieldConfig] = "another-update"
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			By("Waiting for cooldown to pass")
@@ -227,10 +222,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
@@ -242,11 +237,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -264,7 +259,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Name:      cmName,
 					Namespace: ctjNamespace,
 				},
-				Data: map[string]string{"config": "value1"},
+				Data: map[string]string{testFieldConfig: testValue1},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
 
@@ -283,12 +278,12 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Verifying no job created on initial reconciliation")
 			jobList := &batchv1.JobList{}
-			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
+			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{DefaultLabel: ctjName})).Should(Succeed())
 			Expect(jobList.Items).To(BeEmpty())
 
 			By("First change triggers job")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = "value3"
+			cm.Data[testFieldConfig] = "value3"
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -307,7 +302,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Second change within cooldown does not trigger")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = testValue2
+			cm.Data[testFieldConfig] = testValue2
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -323,7 +318,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			time.Sleep(4 * time.Second) // Wait for cooldown
 
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = "value4"
+			cm.Data[testFieldConfig] = "value4"
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -352,10 +347,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"}, // Only watch this field
+							Fields:     []string{testDataConfig}, // Only watch this field
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
@@ -367,11 +362,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -390,8 +385,8 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Namespace: ctjNamespace,
 				},
 				Data: map[string]string{
-					"config":      "monitored",
-					"other-field": "not-monitored",
+					testFieldConfig: "monitored",
+					"other-field":   "not-monitored",
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -411,12 +406,12 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Verifying no job created on initial reconciliation")
 			jobList := &batchv1.JobList{}
-			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
+			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{DefaultLabel: ctjName})).Should(Succeed())
 			Expect(jobList.Items).To(BeEmpty())
 
 			By("Change to monitored field triggers first job")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = "first-change"
+			cm.Data[testFieldConfig] = "first-change"
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -451,7 +446,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			By("Change to monitored field triggers second job")
 			time.Sleep(2 * time.Second) // Wait for cooldown
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = testValueChanged
+			cm.Data[testFieldConfig] = testValueChanged
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -482,17 +477,17 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName2,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAll),
@@ -504,11 +499,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -526,7 +521,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Name:      cmName,
 					Namespace: ctjNamespace,
 				},
-				Data: map[string]string{"config": "value1"},
+				Data: map[string]string{testFieldConfig: testValue1},
 			}
 			Expect(k8sClient.Create(ctx, cm1)).Should(Succeed())
 
@@ -536,7 +531,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Name:      cmName2,
 					Namespace: ctjNamespace,
 				},
-				Data: map[string]string{"config": "value1"},
+				Data: map[string]string{testFieldConfig: testValue1},
 			}
 			Expect(k8sClient.Create(ctx, cm2)).Should(Succeed())
 
@@ -560,11 +555,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Changing both ConfigMaps")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm1)).Should(Succeed())
-			cm1.Data["config"] = "changed1"
+			cm1.Data[testFieldConfig] = "changed1"
 			Expect(k8sClient.Update(ctx, cm1)).Should(Succeed())
 
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName2, Namespace: ctjNamespace}, cm2)).Should(Succeed())
-			cm2.Data["config"] = "changed2"
+			cm2.Data[testFieldConfig] = "changed2"
 			Expect(k8sClient.Update(ctx, cm2)).Should(Succeed())
 
 			By("Second reconciliation with all resources changed")
@@ -597,10 +592,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       "non-existent-cm",
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
@@ -612,11 +607,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -656,7 +651,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
 							Fields:     []string{}, // No fields - watches whole resource
@@ -671,11 +666,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -693,7 +688,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Name:      cmName,
 					Namespace: ctjNamespace,
 				},
-				Data: map[string]string{"config": "value1"},
+				Data: map[string]string{testFieldConfig: testValue1},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
 
@@ -717,7 +712,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Updating ConfigMap triggers job")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = "value2"
+			cm.Data[testFieldConfig] = testValue2
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -748,17 +743,17 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName2,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAll),
@@ -770,11 +765,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -792,7 +787,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Name:      cmName,
 					Namespace: ctjNamespace,
 				},
-				Data: map[string]string{"config": "value1"},
+				Data: map[string]string{testFieldConfig: testValue1},
 			}
 			Expect(k8sClient.Create(ctx, cm1)).Should(Succeed())
 
@@ -801,7 +796,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Name:      cmName2,
 					Namespace: ctjNamespace,
 				},
-				Data: map[string]string{"config": "value1"},
+				Data: map[string]string{testFieldConfig: testValue1},
 			}
 			Expect(k8sClient.Create(ctx, cm2)).Should(Succeed())
 
@@ -820,7 +815,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Changing only one ConfigMap (not all)")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm1)).Should(Succeed())
-			cm1.Data["config"] = "changed1"
+			cm1.Data[testFieldConfig] = "changed1"
 			Expect(k8sClient.Update(ctx, cm1)).Should(Succeed())
 
 			By("Second reconciliation with partial change")
@@ -849,10 +844,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
@@ -864,11 +859,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -886,7 +881,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Name:      cmName,
 					Namespace: ctjNamespace,
 				},
-				Data: map[string]string{"config": "value1"},
+				Data: map[string]string{testFieldConfig: testValue1},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
 
@@ -905,7 +900,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("First change triggers job")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = testValue2
+			cm.Data[testFieldConfig] = testValue2
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -924,7 +919,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Second change immediately triggers another job (zero cooldown)")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = "value3"
+			cm.Data[testFieldConfig] = "value3"
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -953,7 +948,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
 							Fields:     []string{"data.field1", "data.field2"},
@@ -968,11 +963,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -1051,10 +1046,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
@@ -1066,11 +1061,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -1088,7 +1083,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Name:      cmName,
 					Namespace: ctjNamespace,
 				},
-				Data: map[string]string{"config": "value1"},
+				Data: map[string]string{testFieldConfig: testValue1},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
 
@@ -1107,7 +1102,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Triggering a change")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = testValue2
+			cm.Data[testFieldConfig] = testValue2
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -1143,7 +1138,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
 							Fields:     []string{"data.watched"},
@@ -1158,11 +1153,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -1181,8 +1176,8 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Namespace: ctjNamespace,
 				},
 				Data: map[string]string{
-					"watched":   "initial",
-					"unwatched": "initial",
+					"watched":   testValueInitial,
+					"unwatched": testValueInitial,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -1248,10 +1243,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
@@ -1264,11 +1259,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -1287,7 +1282,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Namespace: ctjNamespace,
 				},
 				Data: map[string]string{
-					"config": "initial-value",
+					testFieldConfig: testValueInitialValue,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -1308,7 +1303,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			By("Creating 2 jobs by triggering changes")
 			for i := 1; i <= 2; i++ {
 				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-				cm.Data["config"] = fmt.Sprintf("value-%d", i)
+				cm.Data[testFieldConfig] = fmt.Sprintf("value-%d", i)
 				Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 				_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -1321,7 +1316,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Verifying 2 jobs were created before cleanup")
 			jobList := &batchv1.JobList{}
-			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
+			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{DefaultLabel: ctjName})).Should(Succeed())
 			Expect(jobList.Items).To(HaveLen(2))
 
 			By("Triggering additional reconciliation to cleanup old jobs")
@@ -1333,7 +1328,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			By("Verifying that only 1 jobs remain (history limit)")
 			Eventually(func() int {
 				jobList := &batchv1.JobList{}
-				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName}); err != nil {
+				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{DefaultLabel: ctjName}); err != nil {
 					return -1
 				}
 				// Count only jobs that are not being deleted (DeletionTimestamp is nil)
@@ -1347,7 +1342,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			}, time.Second*90, time.Millisecond*1000).Should(Equal(1))
 
 			By("Verifying the oldest jobs were deleted")
-			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
+			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{DefaultLabel: ctjName})).Should(Succeed())
 			// Filter out jobs being deleted
 			activeJobs := []batchv1.Job{}
 			for _, job := range jobList.Items {
@@ -1369,10 +1364,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
@@ -1385,11 +1380,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -1408,7 +1403,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Namespace: ctjNamespace,
 				},
 				Data: map[string]string{
-					"config": "initial",
+					testFieldConfig: testValueInitial,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -1492,10 +1487,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
@@ -1507,11 +1502,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -1530,7 +1525,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Namespace: ctjNamespace,
 				},
 				Data: map[string]string{
-					"config": "initial-value",
+					testFieldConfig: testValueInitialValue,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -1555,7 +1550,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Triggering a change to create a job")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = "updated-value"
+			cm.Data[testFieldConfig] = "updated-value"
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			_, err = controllerReconciler.Reconcile(ctx, ctrl.Request{
@@ -1584,7 +1579,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       "test-cm",
 							// Missing namespace for namespaced resource
 						},
@@ -1598,11 +1593,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -1639,10 +1634,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Resources: []triggersv1alpha.ResourceReference{
 						{
 							APIVersion: "v1",
-							Kind:       "ConfigMap",
+							Kind:       testKindConfigMap,
 							Name:       cmName,
 							Namespace:  ctjNamespace,
-							Fields:     []string{"data.config"},
+							Fields:     []string{testDataConfig},
 						},
 					},
 					Condition: ptr.To(triggersv1alpha.TriggerConditionAny),
@@ -1655,11 +1650,11 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
-												"hello world",
+												testCmdEcho,
+												testCmdHelloWorld,
 											},
 										},
 									},
@@ -1678,7 +1673,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 					Namespace: ctjNamespace,
 				},
 				Data: map[string]string{
-					"config": "initial-value",
+					testFieldConfig: testValueInitialValue,
 				},
 			}
 			Expect(k8sClient.Create(ctx, cm)).Should(Succeed())
@@ -1698,7 +1693,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Triggering a change to create a job")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: ctjNamespace}, cm)).Should(Succeed())
-			cm.Data["config"] = "updated-value"
+			cm.Data[testFieldConfig] = "updated-value"
 			Expect(k8sClient.Update(ctx, cm)).Should(Succeed())
 
 			By("Second reconciliation should succeed even if listOwnedJobs encounters issues during cleanup")
@@ -1737,10 +1732,10 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 									RestartPolicy: corev1.RestartPolicyNever,
 									Containers: []corev1.Container{
 										{
-											Name:  "test-container",
-											Image: "busybox",
+											Name:  testContainerName,
+											Image: testImageBusybox,
 											Command: []string{
-												"echo",
+												testCmdEcho,
 												"cluster resource changed",
 											},
 										},
@@ -1781,7 +1776,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 
 			By("Verifying no job was created on initial reconciliation")
 			jobList := &batchv1.JobList{}
-			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName})).Should(Succeed())
+			Expect(k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{DefaultLabel: ctjName})).Should(Succeed())
 			Expect(jobList.Items).To(BeEmpty())
 
 			By("Updating the watched Namespace with a new label")
@@ -1805,7 +1800,7 @@ var _ = Describe("ChangeTriggeredJob Controller", func() {
 			By("Verifying a job was created")
 			Eventually(func() int {
 				jobList := &batchv1.JobList{}
-				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{"changejob.dev/owner": ctjName}); err != nil {
+				if err := k8sClient.List(ctx, jobList, client.InNamespace(ctjNamespace), client.MatchingLabels{DefaultLabel: ctjName}); err != nil {
 					return 0
 				}
 				return len(jobList.Items)

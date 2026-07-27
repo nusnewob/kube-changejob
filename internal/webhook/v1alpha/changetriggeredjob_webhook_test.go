@@ -33,6 +33,14 @@ import (
 	// TODO (user): Add any additional imports if needed
 )
 
+const (
+	testNamespace      = "default"
+	testContainerName  = "test"
+	testContainerImage = "busybox:latest"
+	testKindConfigMap  = "ConfigMap"
+	testCMName         = "test-cm"
+)
+
 var _ = Describe("ChangeTriggeredJob Webhook", func() {
 	var (
 		obj       *triggersv1alpha.ChangeTriggeredJob
@@ -46,12 +54,12 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 		ctx = context.Background()
 		obj = &triggersv1alpha.ChangeTriggeredJob{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
+				Namespace: testNamespace,
 			},
 		}
 		oldObj = &triggersv1alpha.ChangeTriggeredJob{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
+				Namespace: testNamespace,
 			},
 		}
 
@@ -83,8 +91,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -95,8 +103,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -117,8 +125,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -129,8 +137,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -151,8 +159,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -163,8 +171,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -182,8 +190,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -194,8 +202,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -219,8 +227,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -231,8 +239,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -267,8 +275,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -279,9 +287,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 					Fields:     []string{"data.config"},
 				},
 			}
@@ -301,8 +309,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -313,15 +321,15 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
+					Kind:       testKindConfigMap,
 					Name:       "test-cm1",
-					Namespace:  "default",
+					Namespace:  testNamespace,
 				},
 				{
 					APIVersion: "v1",
 					Kind:       "Secret",
 					Name:       "test-secret",
-					Namespace:  "default",
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -340,8 +348,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -352,8 +360,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			oldObj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -376,8 +384,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -388,9 +396,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			oldObj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -401,8 +409,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -413,9 +421,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
+					Kind:       testKindConfigMap,
 					Name:       "test-cm-updated",
-					Namespace:  "default",
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -434,8 +442,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -446,8 +454,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -467,8 +475,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -479,9 +487,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -501,8 +509,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -513,9 +521,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -537,8 +545,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -549,8 +557,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -570,8 +578,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -582,9 +590,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 					Fields:     []string{"data.key1", "data.key2"},
 				},
 			}
@@ -604,8 +612,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -616,9 +624,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 					Fields:     []string{"*"},
 				},
 			}
@@ -641,8 +649,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -653,8 +661,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -675,8 +683,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -708,8 +716,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -720,9 +728,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "invalid/version/format",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -741,8 +749,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -755,7 +763,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 					APIVersion: "v1",
 					Kind:       "NonExistentKind",
 					Name:       "test-resource",
-					Namespace:  "default",
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -774,8 +782,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -786,8 +794,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -817,8 +825,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -829,9 +837,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -851,8 +859,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -863,9 +871,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -885,8 +893,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -897,9 +905,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -919,8 +927,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							// Missing RestartPolicy which should be Never or OnFailure for Jobs
@@ -931,9 +939,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -959,9 +967,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -981,8 +989,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyOnFailure,
@@ -993,9 +1001,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -1015,7 +1023,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 							Containers: []corev1.Container{
 								{
 									Name:  "main",
-									Image: "busybox:latest",
+									Image: testContainerImage,
 								},
 								{
 									Name:  "sidecar",
@@ -1030,9 +1038,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -1052,8 +1060,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -1064,9 +1072,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -1087,8 +1095,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -1099,9 +1107,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
@@ -1120,8 +1128,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -1132,9 +1140,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 					Fields:     []string{}, // Empty fields array
 				},
 			}
@@ -1150,7 +1158,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			By("Creating a ChangeTriggeredJob and verifying default defaulter values first")
 			testObj := &triggersv1alpha.ChangeTriggeredJob{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
+					Namespace: testNamespace,
 				},
 			}
 			testObj.Spec.JobTemplate = batchv1.JobTemplateSpec{
@@ -1159,8 +1167,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -1171,8 +1179,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			testObj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -1195,8 +1203,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -1209,7 +1217,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 					APIVersion: "v1",
 					Kind:       "Secret",
 					Name:       "test-secret",
-					Namespace:  "default",
+					Namespace:  testNamespace,
 					Fields:     []string{"data.password"},
 				},
 			}
@@ -1229,8 +1237,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -1243,7 +1251,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 					APIVersion: "v1",
 					Kind:       "Pod",
 					Name:       "test-pod",
-					Namespace:  "default",
+					Namespace:  testNamespace,
 					Fields:     []string{"status.phase"},
 				},
 			}
@@ -1263,8 +1271,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -1277,7 +1285,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 					APIVersion: "v1",
 					Kind:       "Service",
 					Name:       "test-service",
-					Namespace:  "default",
+					Namespace:  testNamespace,
 					Fields:     []string{"spec.type"},
 				},
 			}
@@ -1297,8 +1305,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -1311,7 +1319,7 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       "test-deployment",
-					Namespace:  "default",
+					Namespace:  testNamespace,
 					Fields:     []string{"spec.replicas"},
 				},
 			}
@@ -1335,8 +1343,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -1347,8 +1355,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
 				},
 			}
 
@@ -1373,8 +1381,8 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
 								{
-									Name:  "test",
-									Image: "busybox:latest",
+									Name:  testContainerName,
+									Image: testContainerImage,
 								},
 							},
 							RestartPolicy: corev1.RestartPolicyNever,
@@ -1385,9 +1393,9 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 			obj.Spec.Resources = []triggersv1alpha.ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-cm",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testCMName,
+					Namespace:  testNamespace,
 				},
 			}
 
