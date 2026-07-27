@@ -25,10 +25,19 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+const (
+	// Group is the API group name.
+	Group = "triggers.changejob.dev"
+	// Version is the API version string.
+	Version = "v1alpha"
+	// GroupVersionString is the combined group/version string.
+	GroupVersionString = Group + "/" + Version
+)
+
 var (
 	// SchemeGroupVersion is group version used to register these objects.
 	// This name is used by applyconfiguration generators (e.g. controller-gen).
-	SchemeGroupVersion = schema.GroupVersion{Group: "triggers.changejob.dev", Version: "v1alpha"}
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 	// GroupVersion is an alias for SchemeGroupVersion, for backward compatibility.
 	GroupVersion = SchemeGroupVersion

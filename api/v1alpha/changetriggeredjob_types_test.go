@@ -26,6 +26,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	testAPIVersion         = GroupVersionString
+	testKindConfigMap      = "ConfigMap"
+	testNamespace          = "default"
+	testConfigName         = "test-config"
+	testCTJName            = "test-ctj"
+	testConditionAvailable = "Available"
+	testFieldKey1          = "data.key1"
+	testFieldKey2          = "data.key2"
+	testFieldKey3          = "data.key3"
+	testConditionReady     = "Ready"
+)
+
 func TestChangeTriggeredJobCreation(t *testing.T) {
 	jobTemplate := batchv1.JobTemplateSpec{
 		Spec: batchv1.JobSpec{
@@ -46,20 +59,20 @@ func TestChangeTriggeredJobCreation(t *testing.T) {
 	resources := []ResourceReference{
 		{
 			APIVersion: "v1",
-			Kind:       "ConfigMap",
-			Name:       "test-config",
-			Namespace:  "default",
+			Kind:       testKindConfigMap,
+			Name:       testConfigName,
+			Namespace:  testNamespace,
 		},
 	}
 
 	ctj := &ChangeTriggeredJob{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "triggers.changejob.dev/v1alpha",
-			Kind:       "ChangeTriggeredJob",
+			APIVersion: testAPIVersion,
+			Kind:       kindChangeTriggeredJob,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-ctj",
-			Namespace: "default",
+			Name:      testCTJName,
+			Namespace: testNamespace,
 		},
 		Spec: ChangeTriggeredJobSpec{
 			JobTemplate: jobTemplate,
@@ -67,7 +80,7 @@ func TestChangeTriggeredJobCreation(t *testing.T) {
 		},
 	}
 
-	if ctj.Name != "test-ctj" {
+	if ctj.Name != testCTJName {
 		t.Errorf("Expected name to be 'test-ctj', got %s", ctj.Name)
 	}
 
@@ -75,7 +88,7 @@ func TestChangeTriggeredJobCreation(t *testing.T) {
 		t.Errorf("Expected 1 resource, got %d", len(ctj.Spec.Resources))
 	}
 
-	if ctj.Spec.Resources[0].Kind != "ConfigMap" {
+	if ctj.Spec.Resources[0].Kind != testKindConfigMap {
 		t.Errorf("Expected Kind to be 'ConfigMap', got %s", ctj.Spec.Resources[0].Kind)
 	}
 }
@@ -90,9 +103,9 @@ func TestResourceReferenceValidation(t *testing.T) {
 			name: "valid namespaced resource",
 			resource: ResourceReference{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
+				Kind:       testKindConfigMap,
 				Name:       "my-config",
-				Namespace:  "default",
+				Namespace:  testNamespace,
 			},
 			expectErr: false,
 		},
@@ -111,7 +124,7 @@ func TestResourceReferenceValidation(t *testing.T) {
 				APIVersion: "v1",
 				Kind:       "Secret",
 				Name:       "my-secret",
-				Namespace:  "default",
+				Namespace:  testNamespace,
 				Fields:     []string{"data.password", "data.username"},
 			},
 			expectErr: false,
@@ -122,7 +135,7 @@ func TestResourceReferenceValidation(t *testing.T) {
 				APIVersion: "apps/v1",
 				Kind:       "Deployment",
 				Name:       "my-deploy",
-				Namespace:  "default",
+				Namespace:  testNamespace,
 				Fields:     []string{"*"},
 			},
 			expectErr: false,
@@ -244,7 +257,7 @@ func TestChangeTriggeredJobStatus(t *testing.T) {
 	status := ChangeTriggeredJobStatus{
 		Conditions: []metav1.Condition{
 			{
-				Type:               "Available",
+				Type:               testConditionAvailable,
 				Status:             metav1.ConditionTrue,
 				LastTransitionTime: now,
 				Reason:             "JobTriggered",
@@ -254,12 +267,12 @@ func TestChangeTriggeredJobStatus(t *testing.T) {
 		ResourceHashes: []ResourceReferenceStatus{
 			{
 				APIVersion: "v1",
-				Kind:       "ConfigMap",
-				Name:       "test-config",
-				Namespace:  "default",
+				Kind:       testKindConfigMap,
+				Name:       testConfigName,
+				Namespace:  testNamespace,
 				Fields: []ResourceFieldHash{
 					{
-						Field:    "data.key1",
+						Field:    testFieldKey1,
 						LastHash: "abc123",
 					},
 				},
@@ -274,7 +287,7 @@ func TestChangeTriggeredJobStatus(t *testing.T) {
 		t.Errorf("Expected 1 condition, got %d", len(status.Conditions))
 	}
 
-	if status.Conditions[0].Type != "Available" {
+	if status.Conditions[0].Type != testConditionAvailable {
 		t.Errorf("Expected condition type 'Available', got %s", status.Conditions[0].Type)
 	}
 
@@ -339,20 +352,20 @@ func TestResourceFieldHash(t *testing.T) {
 func TestChangeTriggeredJobList(t *testing.T) {
 	list := &ChangeTriggeredJobList{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "triggers.changejob.dev/v1alpha",
-			Kind:       "ChangeTriggeredJobList",
+			APIVersion: testAPIVersion,
+			Kind:       kindChangeTriggeredJobList,
 		},
 		Items: []ChangeTriggeredJob{
 			{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "ctj-1",
-					Namespace: "default",
+					Namespace: testNamespace,
 				},
 			},
 			{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "ctj-2",
-					Namespace: "default",
+					Namespace: testNamespace,
 				},
 			},
 		},
@@ -427,12 +440,12 @@ func TestChangeTriggeredJobSpecWithDefaults(t *testing.T) {
 func TestChangeTriggeredJobJSONMarshaling(t *testing.T) {
 	ctj := &ChangeTriggeredJob{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "triggers.changejob.dev/v1alpha",
-			Kind:       "ChangeTriggeredJob",
+			APIVersion: testAPIVersion,
+			Kind:       kindChangeTriggeredJob,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-ctj",
-			Namespace: "default",
+			Name:      testCTJName,
+			Namespace: testNamespace,
 		},
 		Spec: ChangeTriggeredJobSpec{
 			JobTemplate: batchv1.JobTemplateSpec{
@@ -453,9 +466,9 @@ func TestChangeTriggeredJobJSONMarshaling(t *testing.T) {
 			Resources: []ResourceReference{
 				{
 					APIVersion: "v1",
-					Kind:       "ConfigMap",
-					Name:       "test-config",
-					Namespace:  "default",
+					Kind:       testKindConfigMap,
+					Name:       testConfigName,
+					Namespace:  testNamespace,
 				},
 			},
 		},
@@ -486,13 +499,13 @@ func TestChangeTriggeredJobJSONMarshaling(t *testing.T) {
 func TestResourceReferenceWithMultipleFields(t *testing.T) {
 	resource := ResourceReference{
 		APIVersion: "v1",
-		Kind:       "ConfigMap",
+		Kind:       testKindConfigMap,
 		Name:       "my-config",
-		Namespace:  "default",
+		Namespace:  testNamespace,
 		Fields: []string{
-			"data.key1",
-			"data.key2",
-			"data.key3",
+			testFieldKey1,
+			testFieldKey2,
+			testFieldKey3,
 		},
 	}
 
@@ -501,9 +514,9 @@ func TestResourceReferenceWithMultipleFields(t *testing.T) {
 	}
 
 	expectedFields := map[string]bool{
-		"data.key1": true,
-		"data.key2": true,
-		"data.key3": true,
+		testFieldKey1: true,
+		testFieldKey2: true,
+		testFieldKey3: true,
 	}
 
 	for _, field := range resource.Fields {
@@ -516,13 +529,13 @@ func TestResourceReferenceWithMultipleFields(t *testing.T) {
 func TestResourceReferenceStatusWithMultipleHashes(t *testing.T) {
 	status := ResourceReferenceStatus{
 		APIVersion: "v1",
-		Kind:       "ConfigMap",
-		Name:       "test-config",
-		Namespace:  "default",
+		Kind:       testKindConfigMap,
+		Name:       testConfigName,
+		Namespace:  testNamespace,
 		Fields: []ResourceFieldHash{
-			{Field: "data.key1", LastHash: "hash1"},
-			{Field: "data.key2", LastHash: "hash2"},
-			{Field: "data.key3", LastHash: "hash3"},
+			{Field: testFieldKey1, LastHash: "hash1"},
+			{Field: testFieldKey2, LastHash: "hash2"},
+			{Field: testFieldKey3, LastHash: "hash3"},
 		},
 	}
 
@@ -532,9 +545,9 @@ func TestResourceReferenceStatusWithMultipleHashes(t *testing.T) {
 
 	// Verify each hash
 	expectedHashes := map[string]string{
-		"data.key1": "hash1",
-		"data.key2": "hash2",
-		"data.key3": "hash3",
+		testFieldKey1: "hash1",
+		testFieldKey2: "hash2",
+		testFieldKey3: "hash3",
 	}
 
 	for _, fieldHash := range status.Fields {
@@ -562,10 +575,10 @@ func TestChangeTriggeredJobConditions(t *testing.T) {
 			name: "single condition",
 			conditions: []metav1.Condition{
 				{
-					Type:               "Available",
+					Type:               testConditionAvailable,
 					Status:             metav1.ConditionTrue,
 					LastTransitionTime: now,
-					Reason:             "Ready",
+					Reason:             testConditionReady,
 					Message:            "ChangeTriggeredJob is ready",
 				},
 			},
@@ -575,11 +588,11 @@ func TestChangeTriggeredJobConditions(t *testing.T) {
 			name: "multiple conditions",
 			conditions: []metav1.Condition{
 				{
-					Type:               "Available",
+					Type:               testConditionAvailable,
 					Status:             metav1.ConditionTrue,
 					LastTransitionTime: now,
-					Reason:             "Ready",
-					Message:            "Ready",
+					Reason:             testConditionReady,
+					Message:            testConditionReady,
 				},
 				{
 					Type:               "Progressing",

@@ -24,6 +24,12 @@ import (
 	"testing"
 )
 
+const (
+	testLine1      = "line1"
+	testLine2      = "line2"
+	testLine1Line2 = testLine1 + "\n" + testLine2
+)
+
 func TestGetNonEmptyLines(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -37,28 +43,28 @@ func TestGetNonEmptyLines(t *testing.T) {
 		},
 		{
 			name:     "single line",
-			input:    "line1",
-			expected: []string{"line1"},
+			input:    testLine1,
+			expected: []string{testLine1},
 		},
 		{
 			name:     "multiple lines",
 			input:    "line1\nline2\nline3",
-			expected: []string{"line1", "line2", "line3"},
+			expected: []string{testLine1, testLine2, "line3"},
 		},
 		{
 			name:     "lines with empty lines",
 			input:    "line1\n\nline2\n\nline3",
-			expected: []string{"line1", "line2", "line3"},
+			expected: []string{testLine1, testLine2, "line3"},
 		},
 		{
 			name:     "trailing newline",
 			input:    "line1\nline2\n",
-			expected: []string{"line1", "line2"},
+			expected: []string{testLine1, testLine2},
 		},
 		{
 			name:     "leading newline",
 			input:    "\nline1\nline2",
-			expected: []string{"line1", "line2"},
+			expected: []string{testLine1, testLine2},
 		},
 		{
 			name:     "multiple empty lines",
@@ -154,10 +160,10 @@ func TestUncommentCodeBasic(t *testing.T) {
 		},
 		{
 			name:        "empty prefix",
-			content:     "line1\nline2",
-			target:      "line2",
+			content:     testLine1Line2,
+			target:      testLine2,
 			prefix:      "",
-			expected:    "line1\nline2",
+			expected:    testLine1Line2,
 			expectError: false,
 		},
 	}
@@ -219,7 +225,7 @@ func TestUncommentCodeEdgeCases(t *testing.T) {
 		}
 		defer func() { _ = os.Remove(tmpFile.Name()) }()
 
-		content := "line1\nline2"
+		content := testLine1Line2
 		if _, err := tmpFile.WriteString(content); err != nil {
 			t.Fatalf("Failed to write: %v", err)
 		}
