@@ -15,15 +15,14 @@
 - Update dependabot config - ([54afe06](https://github.com/nusnewob/kube-changejob/commit/54afe0662afd1af90dc020b005e143ff1c82c5cd))
 - Update CHANGELOG.md for release v0.1.0 - ([d20a0ac](https://github.com/nusnewob/kube-changejob/commit/d20a0acd398085b68169744bf89d666cde451db9))
 
-
 ## [0.1.0](https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.3..v0.1.0) - 2026-01-29
 
 ### 🐛 Bug Fixes
 
-- *(controller)* Improve logic, robustness, and functionality ([#28](https://github.com/nusnewob/kube-changejob/issues/28)) - ([8e32e07](https://github.com/nusnewob/kube-changejob/commit/8e32e0729d9502cf3bdad52d5c3d85316cbffcd0))
-- *(controller)* Improve logic, robustness, and functionality - ([9ed8fb2](https://github.com/nusnewob/kube-changejob/commit/9ed8fb2144c939b4e2d6477d4dd6805001d55fe4))
+- _(controller)_ Improve logic, robustness, and functionality ([#28](https://github.com/nusnewob/kube-changejob/issues/28)) - ([8e32e07](https://github.com/nusnewob/kube-changejob/commit/8e32e0729d9502cf3bdad52d5c3d85316cbffcd0))
+- _(controller)_ Improve logic, robustness, and functionality - ([9ed8fb2](https://github.com/nusnewob/kube-changejob/commit/9ed8fb2144c939b4e2d6477d4dd6805001d55fe4))
 - Preallocating array to fix golangci-lint error - ([69cf445](https://github.com/nusnewob/kube-changejob/commit/69cf4452795666cd23b6cba9a07b9204090d3eb8))
-- Kubebuilder upgrade confilicts - ([eb9bdfe](https://github.com/nusnewob/kube-changejob/commit/eb9bdfe898545fcddcbe8de52dfa7af6d727709f))
+- Kubebuilder upgrade conflicts - ([eb9bdfe](https://github.com/nusnewob/kube-changejob/commit/eb9bdfe898545fcddcbe8de52dfa7af6d727709f))
 - Codecov config ([#30](https://github.com/nusnewob/kube-changejob/issues/30)) - ([b32c914](https://github.com/nusnewob/kube-changejob/commit/b32c9142fab20c157d11b09ecd51363770730011))
 - Codecov config - ([7ebc7b2](https://github.com/nusnewob/kube-changejob/commit/7ebc7b2baaf37f4bef6bfbd296e7ae4ab0893a1a))
 - Indexing namespace and cluster scoped resources - ([db99b47](https://github.com/nusnewob/kube-changejob/commit/db99b476b1f3d0bd71fd5a99da8339c21a7f18ba))
@@ -39,8 +38,8 @@
 
 ## New Contributors ❤️
 
-* @github-actions[bot] made their first contribution
-* @google-labs-jules[bot] made their first contribution in [#29](https://github.com/nusnewob/kube-changejob/pull/29)
+- @github-actions[bot] made their first contribution
+- @google-labs-jules[bot] made their first contribution in [#29](https://github.com/nusnewob/kube-changejob/pull/29)
 
 ## [0.1.0-alpha.3](https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.2..v0.1.0-alpha.3) - 2026-01-15
 
@@ -63,7 +62,6 @@
 - Reduce unnecessary rbac permission for watched resources ([#19](https://github.com/nusnewob/kube-changejob/issues/19)) - ([0997600](https://github.com/nusnewob/kube-changejob/commit/09976003fa7f4838b37ed3dc6dd7be03e1e25366))
 - Reduce unnecessary rbac permission for watched resources - ([a598dab](https://github.com/nusnewob/kube-changejob/commit/a598daba8113b824e98b29429425418d0a184732))
 
-
 ## [0.1.0-alpha.2](https://github.com/nusnewob/kube-changejob/compare/v0.1.0-alpha.1..v0.1.0-alpha.2) - 2025-12-30
 
 ### 🐛 Bug Fixes
@@ -81,7 +79,7 @@
 
 ### 🧪 Testing
 
-- *(refactor)* Refactor e2e tests to use k8s go client instead of kubectl, improve speed and efficiency - ([9b43f01](https://github.com/nusnewob/kube-changejob/commit/9b43f01ac53e0643c57045a69f64206e32ee5f92))
+- _(refactor)_ Refactor e2e tests to use k8s go client instead of kubectl, improve speed and efficiency - ([9b43f01](https://github.com/nusnewob/kube-changejob/commit/9b43f01ac53e0643c57045a69f64206e32ee5f92))
 - Add codecov.yml - ([29f9e2d](https://github.com/nusnewob/kube-changejob/commit/29f9e2dd8e5dc2d2d2fc187950128284841346dd))
 - Update tests to cover more test cases - ([209be8f](https://github.com/nusnewob/kube-changejob/commit/209be8f53f60b205eea5debb021baf27a6933e2e))
 
@@ -94,19 +92,18 @@
 - Configurable RBAC for watched resources in helm - ([ec701e5](https://github.com/nusnewob/kube-changejob/commit/ec701e5e7fe37fb6acae23ed174181ef204664d1))
 - Cleanup - ([2ad82ab](https://github.com/nusnewob/kube-changejob/commit/2ad82ab4fca3758adbe55041aeafdc6b67e78883))
 
-
 ## [0.1.0-alpha.1] - 2025-12-23
 
-### ⛰️  Features
+### ⛰️ Features
 
-- *(wip)* Add controller and webhook logic + update CRD + etc - ([13e8b00](https://github.com/nusnewob/kube-changejob/commit/13e8b001631f528686bb1881c955d0a28b39811b))
+- _(wip)_ Add controller and webhook logic + update CRD + etc - ([13e8b00](https://github.com/nusnewob/kube-changejob/commit/13e8b001631f528686bb1881c955d0a28b39811b))
 - Add logging options for controller cmd - ([81d7ba8](https://github.com/nusnewob/kube-changejob/commit/81d7ba80f0bffd78c918ae467e56efc246834a2b))
 - Configurable cmd/envar PollInterval - ([a743109](https://github.com/nusnewob/kube-changejob/commit/a7431098a75f3e45bebca3c419d6ab011b68b402))
 - Add max job history - ([0b67fef](https://github.com/nusnewob/kube-changejob/commit/0b67fef64d73a7ced924cc972d31ca34d19a3312))
 
 ### 🐛 Bug Fixes
 
-- *(docs)* Fix docs links - ([24bc4c6](https://github.com/nusnewob/kube-changejob/commit/24bc4c60dc5e88d3e171d3313f4d95aae8bbc16f))
+- _(docs)_ Fix docs links - ([24bc4c6](https://github.com/nusnewob/kube-changejob/commit/24bc4c60dc5e88d3e171d3313f4d95aae8bbc16f))
 - Fix release pipeline - ([05bd8c7](https://github.com/nusnewob/kube-changejob/commit/05bd8c75f02eba51c23d5e27f58d473eb0cf89bf))
 - Fix github action to sync docs to wiki - ([9e0a35f](https://github.com/nusnewob/kube-changejob/commit/9e0a35f45d4f50854500b2350b8e1254a6002eca))
 - Github actions for docs - ([55dbcc2](https://github.com/nusnewob/kube-changejob/commit/55dbcc24e0397651a507a3b93daca3cb296aab74))
@@ -144,7 +141,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
-- *(refactor)* Add validation to webhook + refactor util func - ([c5bd408](https://github.com/nusnewob/kube-changejob/commit/c5bd40875ab99a36a8d81bfe00db7d85ba120442))
+- _(refactor)_ Add validation to webhook + refactor util func - ([c5bd408](https://github.com/nusnewob/kube-changejob/commit/c5bd40875ab99a36a8d81bfe00db7d85ba120442))
 - Bump version to v0.1.0-alpha.1 - ([0008f0a](https://github.com/nusnewob/kube-changejob/commit/0008f0ad848aecf882b98d5ff7872caa343d1359))
 - Add github action for release - ([487cdfc](https://github.com/nusnewob/kube-changejob/commit/487cdfc72da0dedfc078cae7594cbf9b1027dff3))
 - Add github action for wiki pages - ([40d7ec8](https://github.com/nusnewob/kube-changejob/commit/40d7ec85101545f567cf9255ccdc108d32be2068))
@@ -168,7 +165,7 @@
 
 ### Wip
 
-- *(tests)* Update controller test - ([4d14f74](https://github.com/nusnewob/kube-changejob/commit/4d14f74300f594f489b1ca915d9149d462156ab7))
+- _(tests)_ Update controller test - ([4d14f74](https://github.com/nusnewob/kube-changejob/commit/4d14f74300f594f489b1ca915d9149d462156ab7))
 - Improve controller logics and funcs - ([44e566c](https://github.com/nusnewob/kube-changejob/commit/44e566ca0e56afb8589560b3dd9bdf8d5a361574))
 - Add cooldown delay - ([61f4844](https://github.com/nusnewob/kube-changejob/commit/61f4844d0f042c7945d7b25f5daadfafe95407a7))
 - Add periodic polling in controller - ([7d1d2c8](https://github.com/nusnewob/kube-changejob/commit/7d1d2c8ddf9bc4b3e798b76d6deb6af58293b31c))
@@ -178,7 +175,7 @@
 
 ## New Contributors ❤️
 
-* @nusnewob made their first contribution
-* @dependabot[bot] made their first contribution
+- @nusnewob made their first contribution
+- @dependabot[bot] made their first contribution
 
 <!-- generated by git-cliff -->
