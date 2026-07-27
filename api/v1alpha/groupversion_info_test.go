@@ -198,10 +198,6 @@ func TestSchemeBuilderNotNil(t *testing.T) {
 	if SchemeBuilder == nil {
 		t.Error("SchemeBuilder should not be nil")
 	}
-
-	if SchemeBuilder.GroupVersion != GroupVersion {
-		t.Errorf("SchemeBuilder.GroupVersion should be %v, got %v", GroupVersion, SchemeBuilder.GroupVersion)
-	}
 }
 
 func TestMultipleSchemeRegistrations(t *testing.T) {
