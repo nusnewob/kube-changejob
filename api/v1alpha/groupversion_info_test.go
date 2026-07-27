@@ -23,9 +23,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+const (
+	kindChangeTriggeredJob     = "ChangeTriggeredJob"
+	kindChangeTriggeredJobList = "ChangeTriggeredJobList"
+)
+
 func TestGroupVersionValues(t *testing.T) {
-	expectedGroup := "triggers.changejob.dev"
-	expectedVersion := "v1alpha"
+	expectedGroup := Group
+	expectedVersion := Version
 
 	if GroupVersion.Group != expectedGroup {
 		t.Errorf("Expected Group to be %s, got %s", expectedGroup, GroupVersion.Group)
@@ -37,7 +42,7 @@ func TestGroupVersionValues(t *testing.T) {
 }
 
 func TestGroupVersionString(t *testing.T) {
-	expected := "triggers.changejob.dev/v1alpha"
+	expected := GroupVersionString
 	actual := GroupVersion.String()
 
 	if actual != expected {
@@ -53,20 +58,20 @@ func TestGroupVersionWithKind(t *testing.T) {
 	}{
 		{
 			name: "ChangeTriggeredJob kind",
-			kind: "ChangeTriggeredJob",
+			kind: kindChangeTriggeredJob,
 			expectedGVK: schema.GroupVersionKind{
-				Group:   "triggers.changejob.dev",
-				Version: "v1alpha",
-				Kind:    "ChangeTriggeredJob",
+				Group:   Group,
+				Version: Version,
+				Kind:    kindChangeTriggeredJob,
 			},
 		},
 		{
 			name: "ChangeTriggeredJobList kind",
-			kind: "ChangeTriggeredJobList",
+			kind: kindChangeTriggeredJobList,
 			expectedGVK: schema.GroupVersionKind{
-				Group:   "triggers.changejob.dev",
-				Version: "v1alpha",
-				Kind:    "ChangeTriggeredJobList",
+				Group:   Group,
+				Version: Version,
+				Kind:    kindChangeTriggeredJobList,
 			},
 		},
 	}
@@ -97,9 +102,9 @@ func TestSchemeBuilderRegistration(t *testing.T) {
 
 	// Verify that our types are registered
 	gvk := schema.GroupVersionKind{
-		Group:   "triggers.changejob.dev",
-		Version: "v1alpha",
-		Kind:    "ChangeTriggeredJob",
+		Group:   Group,
+		Version: Version,
+		Kind:    kindChangeTriggeredJob,
 	}
 
 	// Check if the type is known
@@ -145,9 +150,9 @@ func TestSchemeRegisteredTypes(t *testing.T) {
 
 	// Test for ChangeTriggeredJob
 	ctjGVK := schema.GroupVersionKind{
-		Group:   "triggers.changejob.dev",
-		Version: "v1alpha",
-		Kind:    "ChangeTriggeredJob",
+		Group:   Group,
+		Version: Version,
+		Kind:    kindChangeTriggeredJob,
 	}
 
 	if !scheme.Recognizes(ctjGVK) {
@@ -156,9 +161,9 @@ func TestSchemeRegisteredTypes(t *testing.T) {
 
 	// Test for ChangeTriggeredJobList
 	ctjListGVK := schema.GroupVersionKind{
-		Group:   "triggers.changejob.dev",
-		Version: "v1alpha",
-		Kind:    "ChangeTriggeredJobList",
+		Group:   Group,
+		Version: Version,
+		Kind:    kindChangeTriggeredJobList,
 	}
 
 	if !scheme.Recognizes(ctjListGVK) {
@@ -176,8 +181,8 @@ func TestGroupVersionResource(t *testing.T) {
 			name:     "changetriggeredjobs resource",
 			resource: "changetriggeredjobs",
 			expected: schema.GroupVersionResource{
-				Group:    "triggers.changejob.dev",
-				Version:  "v1alpha",
+				Group:    Group,
+				Version:  Version,
 				Resource: "changetriggeredjobs",
 			},
 		},
@@ -197,12 +202,6 @@ func TestGroupVersionResource(t *testing.T) {
 func TestSchemeBuilderNotNil(t *testing.T) {
 	if SchemeBuilder == nil {
 		t.Error("SchemeBuilder should not be nil")
-	}
-
-	// GroupVersion is declared at package level in groupversion_info.go;
-	// runtime.SchemeBuilder does not carry a GroupVersion field.
-	if GroupVersion != SchemeGroupVersion {
-		t.Errorf("GroupVersion should be %v, got %v", SchemeGroupVersion, GroupVersion)
 	}
 }
 

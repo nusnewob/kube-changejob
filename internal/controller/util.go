@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"sort"
+	"slices"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -294,7 +294,7 @@ func (r *ChangeTriggeredJobReconciler) listOwnedJobs(ctx context.Context, change
 	err := r.List(ctx, &jobs, client.InNamespace(changeJob.Namespace), client.MatchingFields{"metadata.ownerReferences.uid": string(changeJob.UID)})
 	if err != nil {
 		// If field selector not supported (e.g., in test environments), fall back to client-side filtering
-		if err := r.List(ctx, &jobs, client.InNamespace(changeJob.Namespace), client.MatchingLabels{"changejob.dev/owner": changeJob.Name}); err != nil {
+		if err := r.List(ctx, &jobs, client.InNamespace(changeJob.Namespace), client.MatchingLabels{DefaultLabel: changeJob.Name}); err != nil {
 			return nil, fmt.Errorf("unable to list jobs: %w", err)
 		}
 
@@ -319,8 +319,11 @@ func (r *ChangeTriggeredJobReconciler) listOwnedJobs(ctx context.Context, change
 		}
 	}
 
-	sort.Slice(activeJobs, func(i, j int) bool {
-		return activeJobs[i].CreationTimestamp.After(activeJobs[j].CreationTimestamp.Time)
+	slices.SortFunc(activeJobs, func(a, b batchv1.Job) int {
+		if a.CreationTimestamp.After(b.CreationTimestamp.Time) {
+			return -1
+		}
+		return 1
 	})
 
 	return activeJobs, nil
