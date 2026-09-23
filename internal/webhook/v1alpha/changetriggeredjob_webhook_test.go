@@ -72,7 +72,12 @@ var _ = Describe("ChangeTriggeredJob Webhook", func() {
 
 		validator = ChangeTriggeredJobCustomValidator{Mapper: mapper, Client: k8sClient}
 		Expect(validator).NotTo(BeNil(), "Expected validator to be initialized")
-		defaulter = ChangeTriggeredJobCustomDefaulter{}
+		defaulter = ChangeTriggeredJobCustomDefaulter{
+			DefaultCooldown:        DefaultValues.DefaultCooldown,
+			DefaultCondition:       DefaultValues.DefaultCondition,
+			DefaultHistory:         DefaultValues.DefaultHistory,
+			ChangedAtAnnotationKey: DefaultValues.ChangedAtAnnotationKey,
+		}
 		Expect(defaulter).NotTo(BeNil(), "Expected defaulter to be initialized")
 		Expect(oldObj).NotTo(BeNil(), "Expected oldObj to be initialized")
 		Expect(obj).NotTo(BeNil(), "Expected obj to be initialized")
