@@ -64,15 +64,9 @@ The release workflow (`.github/workflows/release.yml`) is triggered when a versi
 
 ## Pre-Release Validation
 
-The pre-release workflow (`.github/workflows/pre-release.yml`) runs on every push to main and validates:
+The CI workflow (`.github/workflows/ci.yml`) runs on pull requests, merge queue entries, and pushes to `main`. Use a pull request or manual CI dispatch to validate a release branch. It checks Go code, unit tests, rendered manifests, and dependencies. Once the Go and manifest checks pass, CI builds one manager image and uses one Kind cluster for the Helm install check and E2E suite. A successful run on `main` updates the release draft.
 
-- ✅ All tests pass
-- ✅ Binary builds successfully
-- ✅ Docker image builds
-- ✅ Manifests generate correctly
-- ✅ Helm chart is valid
-- ✅ Security scans pass
-- ✅ Shows release readiness status
+For branch protection, use the **Go and manifest checks**, **Helm and E2E**, and **Security scan** checks.
 
 ## Release Types
 

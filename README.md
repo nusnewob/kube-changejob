@@ -58,12 +58,13 @@ kubectl get pods -n kube-changejob-system
 
 ```bash
 # Install from OCI registry
-helm install kube-changejob oci://ghcr.io/nusnewob/charts/kube-changejob --version 0.1.0
+helm install kube-changejob oci://ghcr.io/nusnewob/charts/kube-changejob --namespace kube-changejob-system --create-namespace --version 0.1.0
 
 # Or with custom values
 helm install kube-changejob oci://ghcr.io/nusnewob/charts/kube-changejob \
+  --namespace kube-changejob-system --create-namespace \
   --version 0.1.0 \
-  --set image.tag=v0.1.0
+  --set manager.image.tag=v0.1.0
 ```
 
 #### Option 3: Using Kustomize (Development)

@@ -1,0 +1,5 @@
+misconfigurations:
+  - id: AVD-DS-0026
+    paths:
+      - Dockerfile
+    statement: Helm and Kustomize define Kubernetes liveness and readiness probes for the manager.

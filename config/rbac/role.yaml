@@ -5,12 +5,11 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - '*'
+  - ""
   resources:
-  - '*'
+  - configmaps
   verbs:
   - get
-  - watch
 - apiGroups:
   - batch
   resources:
@@ -20,8 +19,6 @@ rules:
   - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - triggers.changejob.dev

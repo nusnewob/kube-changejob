@@ -1,4 +1,4 @@
-name: Deploy Documentation
+name: Publish Documentation
 
 on:
   push:
@@ -11,19 +11,23 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages"
+  group: documentation-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      pages: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -48,6 +52,9 @@ jobs:
           path: docs/_site
 
   deploy:
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -57,3 +64,85 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  wiki:
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Clone wiki
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: git clone "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+
+      - name: Process and sync docs
+        run: |
+          # Remove old markdown files from wiki (except Home.md)
+          find wiki -name "*.md" ! -name "Home.md" -type f -delete
+
+          # Copy documentation files
+          cp docs/index.md wiki/Home.md
+          cp docs/installation.md wiki/Installation-Guide.md
+          cp docs/user-guide.md wiki/User-Guide.md
+          cp docs/api-reference.md wiki/API-Reference.md
+          cp docs/configuration.md wiki/Configuration.md
+          cp docs/examples.md wiki/Examples.md
+          cp docs/release.md wiki/Release-Guide.md
+
+          # Process files to convert extension-less links back to .md for wiki
+          cd wiki
+          for file in *.md; do
+            if [ "$file" != "README.md" ]; then
+              # Convert links without extensions to wiki-style links
+              sed -i.bak 's|\](installation)|\](Installation-Guide)|g' "$file"
+              sed -i.bak 's|\](user-guide)|\](User-Guide)|g' "$file"
+              sed -i.bak 's|\](api-reference)|\](API-Reference)|g' "$file"
+              sed -i.bak 's|\](configuration)|\](Configuration)|g' "$file"
+              sed -i.bak 's|\](examples)|\](Examples)|g' "$file"
+              sed -i.bak 's|\](release)|\](Release-Guide)|g' "$file"
+
+              # Remove Jekyll front matter
+              sed -i.bak '/^---$/,/^---$/d' "$file"
+
+              # Remove backup files
+              rm -f "$file.bak"
+            fi
+          done
+
+      - name: Create wiki sidebar
+        run: |
+          cat > wiki/_Sidebar.md << 'EOF'
+          ## kube-changejob Documentation
+
+          * [Home](Home)
+          * [Installation Guide](Installation-Guide)
+          * [User Guide](User-Guide)
+          * [API Reference](API-Reference)
+          * [Configuration](Configuration)
+          * [Examples](Examples)
+          * [Release Guide](Release-Guide)
+
+          ---
+
+          * [GitHub Repository](https://github.com/${{ github.repository }})
+          * [GitHub Pages Docs](https://nusnewob.github.io/kube-changejob)
+          EOF
+
+      - name: Commit and push to wiki
+        run: |
+          cd wiki
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Sync docs from main branch (commit: ${{ github.sha }})"
+            git push
+          fi

@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	// managerImage is the manager image to be built and loaded for testing.
+	// managerImage is the image deployed by the E2E tests.
 	managerImage = "example.com/kube-changejob:v0.0.1"
 	// shouldCleanupCertManager tracks whether CertManager was installed by this suite.
 	shouldCleanupCertManager = false
@@ -52,7 +52,8 @@ var (
 
 // TestE2E runs the end-to-end (e2e) test suite for the project. These tests execute in an isolated,
 // temporary environment to validate project changes with the purpose of being used in CI jobs.
-// The default setup requires Kind and builds/loads the Manager Docker image locally.
+// The default setup builds and loads the manager image locally. Set
+// E2E_PRELOADED_IMAGE to use an image already loaded into the Kind cluster.
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	_, _ = fmt.Fprintf(GinkgoWriter, "Starting kube-changejob e2e test suite\n")
@@ -60,16 +61,18 @@ func TestE2E(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	By("building the manager image")
-	cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", managerImage))
-	_, err := utils.Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to build the manager image")
+	if image := os.Getenv("E2E_PRELOADED_IMAGE"); image != "" {
+		managerImage = image
+	} else {
+		By("building the manager image")
+		cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", managerImage))
+		_, err := utils.Run(cmd)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to build the manager image")
 
-	// TODO(user): If you want to change the e2e test vendor from Kind,
-	// ensure the image is built and available, then remove the following block.
-	By("loading the manager image on Kind")
-	err = utils.LoadImageToKindClusterWithName(managerImage)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to load the manager image into Kind")
+		By("loading the manager image into Kind")
+		err = utils.LoadImageToKindClusterWithName(managerImage)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to load the manager image into Kind")
+	}
 
 	configureKubectlKubeRC()
 	setupCertManager()

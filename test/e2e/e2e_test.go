@@ -109,9 +109,10 @@ var _ = Describe("E2E Tests", Ordered, func() {
 			Expect(err).NotTo(HaveOccurred(), "Failed to create test namespace")
 		}
 
-		By("installing cert-manager")
-		err = utils.InstallCertManager()
-		Expect(err).NotTo(HaveOccurred(), "Failed to install cert-manager")
+		if !skipCertManagerInstall {
+			By("installing cert-manager")
+			Expect(utils.InstallCertManager()).To(Succeed(), "Failed to install cert-manager")
+		}
 
 		By("waiting for cert-manager webhook to be ready")
 		Eventually(func(g Gomega) {
@@ -154,6 +155,32 @@ var _ = Describe("E2E Tests", Ordered, func() {
 		cmd := exec.Command("make", "install")
 		_, err = utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to install CRDs")
+
+		By("granting the manager permission to read trigger Secrets in the test namespace")
+		secretReader := &rbacv1.Role{
+			ObjectMeta: metav1.ObjectMeta{Name: "trigger-secret-reader", Namespace: testNamespace},
+			Rules: []rbacv1.PolicyRule{
+				{
+					APIGroups:     []string{""},
+					Resources:     []string{"secrets"},
+					ResourceNames: []string{"test-secret", "multi-secret", "all-secret"},
+					Verbs:         []string{"get"},
+				},
+			},
+		}
+		Expect(k8sClient.Create(context.Background(), secretReader)).To(Succeed())
+		secretBinding := &rbacv1.RoleBinding{
+			ObjectMeta: metav1.ObjectMeta{Name: secretReader.Name, Namespace: testNamespace},
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "Role",
+				Name:     secretReader.Name,
+			},
+			Subjects: []rbacv1.Subject{
+				{Kind: "ServiceAccount", Name: serviceAccountName, Namespace: namespace},
+			},
+		}
+		Expect(k8sClient.Create(context.Background(), secretBinding)).To(Succeed())
 
 		By("deploying the controller-manager")
 		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", managerImage))
@@ -431,8 +458,10 @@ var _ = Describe("E2E Tests", Ordered, func() {
 		cmd = exec.Command("make", "uninstall")
 		_, _ = utils.Run(cmd)
 
-		By("uninstalling cert-manager")
-		utils.UninstallCertManager()
+		if !skipCertManagerInstall {
+			By("uninstalling cert-manager")
+			utils.UninstallCertManager()
+		}
 
 		By("removing test namespace")
 		testNs := &corev1.Namespace{

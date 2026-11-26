@@ -19,8 +19,6 @@ rules:
       - delete
       - get
       - list
-      - patch
-      - update
       - watch
   - apiGroups:
     - triggers.changejob.dev
@@ -53,5 +51,4 @@ rules:
     resources: {{ toJson .resources }}
     verbs:
       - get
-      - watch
   {{- end }}

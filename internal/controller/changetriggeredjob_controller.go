@@ -51,9 +51,9 @@ var log = logf.Log.WithName("ChangeTriggeredJob")
 // +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs/finalizers,verbs=update
 
 // Manage triggered jobs
-// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;delete
 // Watched resources
-// +kubebuilder:rbac:groups="*",resources="*",verbs=get;watch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get
 
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.25.0/pkg/reconcile

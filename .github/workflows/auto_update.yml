@@ -8,25 +8,24 @@ name: Auto Update
 permissions:
   contents: write
   issues: write
-  models: read
 
 on:
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * 2" # Every Tuesday at 00:00 UTC
 
+concurrency:
+  group: kubebuilder-auto-update
+
 jobs:
   auto-update:
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     # Step 1: Checkout the repository.
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       # Step 2: Configure Git to create commits with the GitHub Actions bot.
@@ -49,22 +48,14 @@ jobs:
           sudo mv kubebuilder /usr/local/bin/
           kubebuilder version
 
-      # Step 5: Install Models extension for GitHub CLI
-      - name: Install/upgrade gh-models extension
-        run: |
-          gh extension install github/gh-models --force
-          gh models --help >/dev/null
-
-      # Step 6: Run the Kubebuilder alpha update command.
-      # More info: https://kubebuilder.io/reference/commands/alpha_update
       - name: Run kubebuilder alpha update
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Executes the update command with specified flags.
         # --force: Completes the merge even if conflicts occur, leaving conflict markers.
         # --push: Automatically pushes the resulting output branch to the 'origin' remote.
         # --restore-path: Preserves specified paths (e.g., CI workflow files) when squashing.
         # --open-gh-issue: Creates a GitHub Issue with a link for opening a PR for review.
-        # --use-gh-models: Adds an AI-generated comment to the created Issue with
-        #   a short overview of the scaffold changes and conflict-resolution guidance (If Any).
         run: |
           kubebuilder alpha update \
             --force \

@@ -42,6 +42,7 @@ linters:
     modernize:
       disable:
         - omitzero
+        - embedlit # Keep embedded Kubernetes metadata explicit in struct literals.
   exclusions:
     generated: lax
     rules:
