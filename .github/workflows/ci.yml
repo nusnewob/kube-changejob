@@ -139,7 +139,52 @@ jobs:
           scan-type: fs
           scan-ref: .
           scanners: vuln,secret,misconfig
-          format: table
+          format: json
+          output: ${{ runner.temp }}/trivy-results.json
+
+      - name: Summarize and enforce scan findings
+        if: ${{ !cancelled() }}
+        run: |
+          report="$RUNNER_TEMP/trivy-results.json"
+          if [[ ! -s "$report" ]]; then
+            echo "### Trivy scan did not produce a report" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          findings=$(jq -r '
+            .Results[]? as $result |
+            ($result.Vulnerabilities[]? | ["Vulnerability", .Severity, .VulnerabilityID, $result.Target, .PkgName, .FixedVersion]),
+            ($result.Misconfigurations[]? | select(.Status == "FAIL") | ["Misconfiguration", .Severity, .ID, $result.Target]),
+            ($result.Secrets[]? | ["Secret", .Severity, .RuleID, $result.Target]) |
+            @tsv
+          ' "$report")
+
+          {
+            echo "### Trivy security scan"
+            echo ""
+            echo "High and critical findings and detected secrets fail this check."
+            echo ""
+            if [[ -n "$findings" ]]; then
+              echo 'Type, severity, finding ID, target, and applicable package and fixed version'
+              echo ""
+              echo '```text'
+              printf '%s\n' "$findings"
+              echo '```'
+            else
+              echo "No findings."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if ! jq -e '
+            [.Results[]? |
+              .Secrets[]?,
+              (.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")),
+              (.Misconfigurations[]? | select(.Status == "FAIL" and (.Severity == "HIGH" or .Severity == "CRITICAL")))
+            ] | length == 0
+          ' "$report" > /dev/null; then
+            echo "::error::Trivy found blocking issues. See the job summary."
+            exit 1
+          fi
 
   update_release_draft:
     name: Update release draft
