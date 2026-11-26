@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Go and manifest checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Spell check
+        uses: crate-ci/typos@v1
+
+      - name: Validate linter configuration and lint Go code
+        run: make lint-config lint
+
+      - name: Run unit tests and generate manifests
+        run: make test kustomize
+
+      - name: Validate rendered manifests
+        run: |
+          bin/kustomize build config/crd > "$RUNNER_TEMP/crds.yaml"
+          bin/kustomize build config/default > "$RUNNER_TEMP/install.yaml"
+          GOBIN="$RUNNER_TEMP" go install github.com/yannh/kubeconform/cmd/kubeconform@v0.8.0
+          "$RUNNER_TEMP/kubeconform" -summary -ignore-missing-schemas \
+            "$RUNNER_TEMP/crds.yaml" "$RUNNER_TEMP/install.yaml"
+
+      - name: Upload coverage
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage.txt
+          flags: controller,cmd
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  integration:
+    name: Helm and E2E
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      KIND_CLUSTER: kube-changejob-ci
+      E2E_PRELOADED_IMAGE: ghcr.io/nusnewob/kube-changejob:ci
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: Azure/setup-helm@v5.1.0
+
+      - name: Lint Helm chart
+        run: helm lint --strict dist/chart
+
+      - uses: helm/kind-action@v1
+        with:
+          version: v0.33.0
+          install_only: true
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build the integration test image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: ${{ env.E2E_PRELOADED_IMAGE }}
+          cache-from: type=gha,scope=ci-image
+          cache-to: type=gha,scope=ci-image,mode=max,ignore-error=true
+
+      - name: Create Kind cluster and load image
+        id: cluster
+        run: |
+          make setup-test-e2e
+          kind load docker-image "$E2E_PRELOADED_IMAGE" --name "$KIND_CLUSTER"
+
+      - name: Install cert-manager
+        run: |
+          helm upgrade --install cert-manager cert-manager \
+            --repo https://charts.jetstack.io --version v1.21.1 \
+            --namespace cert-manager --create-namespace --set crds.enabled=true \
+            --wait --timeout 5m
+
+      - name: Verify Helm installation
+        run: |
+          helm install chart-smoke dist/chart \
+            --namespace kube-changejob-chart-test --create-namespace \
+            --set-string "manager.image.repository=${E2E_PRELOADED_IMAGE%:*}" \
+            --set-string "manager.image.tag=${E2E_PRELOADED_IMAGE##*:}" \
+            --set crd.keep=false \
+            --wait --timeout 5m
+          helm uninstall chart-smoke --namespace kube-changejob-chart-test --wait --timeout 5m
+
+      - name: Run E2E tests
+        env:
+          CERT_MANAGER_INSTALL_SKIP: "true"
+        run: make test-e2e
+
+      - name: Delete Kind cluster after failure
+        if: (failure() || cancelled()) && steps.cluster.outcome != '' && steps.cluster.outcome != 'skipped'
+        run: make cleanup-test-e2e
+
+  security-scan:
+    name: Security scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Scan dependencies and infrastructure configuration
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: table
+
+  update_release_draft:
+    name: Update release draft
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [integration, security-scan]
+    concurrency:
+      group: release
+      queue: max
+    permissions:
+      contents: write
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: release-drafter/release-drafter@v7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

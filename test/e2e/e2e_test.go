@@ -109,9 +109,10 @@ var _ = Describe("E2E Tests", Ordered, func() {
 			Expect(err).NotTo(HaveOccurred(), "Failed to create test namespace")
 		}
 
-		By("installing cert-manager")
-		err = utils.InstallCertManager()
-		Expect(err).NotTo(HaveOccurred(), "Failed to install cert-manager")
+		if !skipCertManagerInstall {
+			By("installing cert-manager")
+			Expect(utils.InstallCertManager()).To(Succeed(), "Failed to install cert-manager")
+		}
 
 		By("waiting for cert-manager webhook to be ready")
 		Eventually(func(g Gomega) {
@@ -431,8 +432,10 @@ var _ = Describe("E2E Tests", Ordered, func() {
 		cmd = exec.Command("make", "uninstall")
 		_, _ = utils.Run(cmd)
 
-		By("uninstalling cert-manager")
-		utils.UninstallCertManager()
+		if !skipCertManagerInstall {
+			By("uninstalling cert-manager")
+			utils.UninstallCertManager()
+		}
 
 		By("removing test namespace")
 		testNs := &corev1.Namespace{
