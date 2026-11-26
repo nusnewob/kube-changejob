@@ -183,6 +183,42 @@ make deploy
 
 ## Configuration
 
+### Permissions for trigger resources
+
+The default installation grants the controller read access to ConfigMaps for
+triggers. Before upgrading, grant the controller explicit read access to any
+other resources your existing triggers reference.
+
+For Helm, list the API groups and plural resource names in
+`manager.watchResources`. Helm replaces the default list when you supply a
+custom one, so include ConfigMaps if you use them:
+
+```yaml
+manager:
+  watchResources:
+    - apiGroups: [""]
+      resources: ["configmaps"]
+    - apiGroups: ["apps"]
+      resources: ["deployments"]
+```
+
+For namespaced resources such as Secrets, prefer a Role and RoleBinding in the
+namespace where the trigger resource lives. You can add these alongside either
+installation method. For example, to let the default Kustomize installation
+read only the Secret named `app-config` in the `my-app` namespace:
+
+```bash
+kubectl -n my-app create role changejob-read-app-config \
+  --verb=get --resource=secrets --resource-name=app-config
+kubectl -n my-app create rolebinding changejob-read-app-config \
+  --role=changejob-read-app-config \
+  --serviceaccount=kube-changejob-system:kube-changejob-controller-manager
+```
+
+For Helm, substitute the installed controller's service account and namespace.
+For cluster-scoped trigger resources, grant `get` on the specific resource type
+through a ClusterRole and ClusterRoleBinding.
+
 ### Controller Configuration
 
 The controller can be configured using command-line flags or environment variables.
@@ -413,6 +449,9 @@ kubectl delete configmap test-config
 ## Upgrading
 
 ### Upgrading from Previous Version
+
+Review [permissions for trigger resources](#permissions-for-trigger-resources)
+before upgrading an installation that watches kinds other than ConfigMaps.
 
 ```bash
 # Using kubectl

@@ -53,5 +53,4 @@ rules:
     resources: {{ toJson .resources }}
     verbs:
       - get
-      - watch
   {{- end }}

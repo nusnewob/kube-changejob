@@ -44,11 +44,11 @@ manager:
 
   ## Pod-level security settings
   ##
-  # Controller watched resources types, also configures controller RBAC permissions
-  # Default allows to watch all resources
+  # API groups and resources the controller can read for triggers.
+  # Add explicit entries for any additional trigger kinds.
   watchResources:
-    - apiGroups: ["*"]
-      resources: ["*"]
+    - apiGroups: [""]
+      resources: ["configmaps"]
 
   # Pod-level security settings
   podSecurityContext:
