@@ -51,7 +51,7 @@ var log = logf.Log.WithName("ChangeTriggeredJob")
 // +kubebuilder:rbac:groups=triggers.changejob.dev,resources=changetriggeredjobs/finalizers,verbs=update
 
 // Manage triggered jobs
-// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;delete
 // Watched resources
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get
 

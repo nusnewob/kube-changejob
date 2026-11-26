@@ -9206,29 +9206,13 @@ metadata:
   namespace: kube-changejob-system
 rules:
 - apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
   - coordination.k8s.io
   resources:
   - leases
   verbs:
   - get
-  - list
-  - watch
   - create
   - update
-  - patch
-  - delete
 - apiGroups:
   - ""
   resources:
@@ -9328,8 +9312,6 @@ rules:
   - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - triggers.changejob.dev
@@ -9539,7 +9521,9 @@ spec:
           name: webhook-certs
           readOnly: true
       securityContext:
+        runAsGroup: 65532
         runAsNonRoot: true
+        runAsUser: 65532
         seccompProfile:
           type: RuntimeDefault
       serviceAccountName: kube-changejob-controller-manager

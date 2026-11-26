@@ -133,32 +133,51 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Scan dependencies and infrastructure configuration
+      - name: Scan dependencies and secrets
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           version: v0.76.2
           scan-type: fs
           scan-ref: .
-          scanners: vuln,secret,misconfig
+          scanners: vuln,secret
           format: json
           output: ${{ runner.temp }}/trivy-results.json
+
+      - name: Scan rendered Kubernetes configuration
+        run: |
+          manifests="$RUNNER_TEMP/scan-manifests"
+          mkdir -p "$manifests"
+          cp Dockerfile "$manifests/"
+          helm template kube-changejob dist/chart --namespace kube-changejob-system > "$manifests/helm.yaml"
+          (
+            cd config/manager
+            kustomize edit set image "controller=ghcr.io/${GITHUB_REPOSITORY,,}:$GITHUB_SHA"
+          )
+          kustomize build config/default > "$manifests/install.yaml"
+          (
+            cd "$manifests"
+            trivy config --config-data "$GITHUB_WORKSPACE/.github/trivy/data" \
+              --ignorefile "$GITHUB_WORKSPACE/.github/trivy/ignore.yaml" --format json \
+              --output "$RUNNER_TEMP/trivy-config.json" .
+          )
 
       - name: Summarize and enforce scan findings
         if: ${{ !cancelled() }}
         run: |
           report="$RUNNER_TEMP/trivy-results.json"
-          if [[ ! -s "$report" ]]; then
+          config_report="$RUNNER_TEMP/trivy-config.json"
+          if [[ ! -s "$report" || ! -s "$config_report" ]]; then
             echo "### Trivy scan did not produce a report" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
-          findings=$(jq -r '
-            .Results[]? as $result |
+          findings=$(jq -sr '
+            .[] | .Results[]? as $result |
             ($result.Vulnerabilities[]? | ["Vulnerability", .Severity, .VulnerabilityID, $result.Target, .PkgName, .FixedVersion]),
             ($result.Misconfigurations[]? | select(.Status == "FAIL") | ["Misconfiguration", .Severity, .ID, $result.Target]),
             ($result.Secrets[]? | ["Secret", .Severity, .RuleID, $result.Target]) |
             @tsv
-          ' "$report")
+          ' "$report" "$config_report")
 
           {
             echo "### Trivy security scan"
@@ -176,13 +195,13 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if ! jq -e '
-            [.Results[]? |
+          if ! jq -se '
+            [.[] | .Results[]? |
               .Secrets[]?,
               (.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")),
               (.Misconfigurations[]? | select(.Status == "FAIL" and (.Severity == "HIGH" or .Severity == "CRITICAL")))
             ] | length == 0
-          ' "$report" > /dev/null; then
+          ' "$report" "$config_report" > /dev/null; then
             echo "::error::Trivy found blocking issues. See the job summary."
             exit 1
           fi

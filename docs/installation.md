@@ -219,6 +219,11 @@ For Helm, substitute the installed controller's service account and namespace.
 For cluster-scoped trigger resources, grant `get` on the specific resource type
 through a ClusterRole and ClusterRoleBinding.
 
+The cluster-wide manager ClusterRole also has permission to create and delete Kubernetes
+Jobs. The controller uses these permissions to launch triggers and prune old
+Jobs. Trivy reports this as `KSV-0048` on the manager ClusterRole. CI keeps the
+finding visible as a medium-severity advisory.
+
 ### Controller Configuration
 
 The controller can be configured using command-line flags or environment variables.

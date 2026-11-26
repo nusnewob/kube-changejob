@@ -71,6 +71,25 @@ jobs:
           helm lint --strict dist/chart
           helm package dist/chart --version "$VERSION" --app-version "$VERSION" --destination dist
 
+      - name: Render release chart for security scanning
+        env:
+          VERSION: ${{ steps.version.outputs.version_no_v }}
+        run: |
+          install -D dist/install.yaml "$RUNNER_TEMP/release-manifests/install.yaml"
+          helm template kube-changejob "dist/kube-changejob-$VERSION.tgz" \
+            --namespace kube-changejob-system > "$RUNNER_TEMP/release-manifests/helm.yaml"
+
+      - name: Scan release manifests
+        uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_CONFIG_DATA: ${{ github.workspace }}/.github/trivy/data
+        with:
+          version: v0.76.2
+          scan-type: config
+          scan-ref: ${{ runner.temp }}/release-manifests
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
         with:
@@ -130,7 +149,7 @@ jobs:
           ### Using Helm
 
           \`\`\`bash
-          helm install kube-changejob oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts/kube-changejob --version ${{ steps.version.outputs.version_no_v }}
+          helm install kube-changejob oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts/kube-changejob --namespace kube-changejob-system --create-namespace --version ${{ steps.version.outputs.version_no_v }}
           \`\`\`
 
           ### Install CRDs only
